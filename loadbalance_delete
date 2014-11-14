@@ -1,0 +1,8 @@
+#! /usr/bin/env bash
+curl -X DELETE  http://localhost:8080/quantum/v1.0/vips/1 | python -m json.tool
+curl -X DELETE  http://localhost:8080/quantum/v1.0/pools/1 | python -m json.tool
+curl -X DELETE  http://localhost:8080/quantum/v1.0/members/1 | python -m json.tool
+curl -X DELETE  http://localhost:8080/quantum/v1.0/members/2 | python -m json.tool
+curl http://localhost:8080/quantum/v1.0/vips/ | python -m json.tool
+curl http://localhost:8080/quantum/v1.0/pools/ | python -m json.tool
+curl http://localhost:8080/quantum/v1.0/members/ | python -m json.tool
