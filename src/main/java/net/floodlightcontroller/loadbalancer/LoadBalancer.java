@@ -125,6 +125,7 @@ public class LoadBalancer implements IFloodlightModule,
     protected static int OFMESSAGE_DAMPER_TIMEOUT = 250; // ms 
     protected static String LB_ETHER_TYPE = "0x800";
     protected static int LB_PRIORITY = 32768;
+    protected static int MAX_FLOW_TABLES = 5000;
     
     // Comparator for sorting by SwitchCluster
     public Comparator<SwitchPort> clusterIdComparator =
@@ -489,11 +490,13 @@ public class LoadBalancer implements IFloodlightModule,
                     // out: match dest client (ip, port), rewrite src from member ip/port to vip ip/port, forward
                     
                     if (routeIn != null) {
-                        pushStaticVipRoute(true, routeIn, client, member, sw.getId());
+                        //pushStaticVipRoute(true, routeIn, client, member, sw.getId());
+                        pushStaticVipRoute(true, routeIn, client, member, sw);
                     }
                     
                     if (routeOut != null) {
-                        pushStaticVipRoute(false, routeOut, client, member, sw.getId());
+                        //pushStaticVipRoute(false, routeOut, client, member, sw.getId());
+                        pushStaticVipRoute(false, routeOut, client, member, sw);
                     }
 
                 }
@@ -516,7 +519,8 @@ public class LoadBalancer implements IFloodlightModule,
      * @param LBMember member
      * @param long pinSwitch
      */
-    public void pushStaticVipRoute(boolean inBound, Route route, IPClient client, LBMember member, long pinSwitch) {
+    //public void pushStaticVipRoute(boolean inBound, Route route, IPClient client, LBMember member, long pinSwitch) {
+    public void pushStaticVipRoute(boolean inBound, Route route, IPClient client, LBMember member, IOFSwitch swId) {
         List<NodePortTuple> path = route.getPath();
         if (path.size()>0) {
            for (int i = 0; i < path.size(); i+=2) {
@@ -548,7 +552,8 @@ public class LoadBalancer implements IFloodlightModule,
                                + "dl_type="+LB_ETHER_TYPE+","
                                + "in_port="+String.valueOf(path.get(i).getPortId());
 
-                   if (sw == pinSwitch) {
+                   //if (sw == pinSwitch) {
+                   if (sw == swId.getId()) {
                        actionString = "set-dst-ip="+IPv4.fromIPv4Address(member.address)+"," 
                                 + "set-dst-mac="+member.macString+","
                                 + "output="+path.get(i+1).getPortId();
@@ -565,7 +570,8 @@ public class LoadBalancer implements IFloodlightModule,
                                + "dl_type="+LB_ETHER_TYPE+","
                                + "in_port="+String.valueOf(path.get(i).getPortId());
 
-                   if (sw == pinSwitch) {
+                   //if (sw == pinSwitch) {
+                   if (sw == swId.getId()) {
                        actionString = "set-src-ip="+IPv4.fromIPv4Address(vips.get(member.vipId).address)+","
                                + "set-src-mac="+vips.get(member.vipId).proxyMac.toString()+","
                                + "output="+path.get(i+1).getPortId();
@@ -589,6 +595,8 @@ public class LoadBalancer implements IFloodlightModule,
         
                fm.setMatch(ofMatch);
                sfp.addFlow(entryName, fm, swString);
+               int flowSize = sfp.getFlows(swId.getStringId()).size();
+               log.info("sw " + swId.getStringId() +  " useage " + flowSize + "/" + MAX_FLOW_TABLES);
 
            }
         }
