@@ -14,3 +14,23 @@ Feature Highlights:
 To download a pre-built VM appliance, access documentation, and sign up for the mailing list, go to:
 
   http://www.projectfloodlight.org/floodlight
+
+
+###LoadBalance
+
+$ ./floodlight
+$ ./loadbalance_add
+$ sudo mn --topo single,3 --mac --switch ovsk --controller=remote,ip=192.168.1.103 // IP is you controller IP
+ mininet > xterm h1 h2 h3
+
+in h1 : nc -k -l 7777
+in h2 : nc -k -l 7777
+in h3 : nc 10.0.0.100 7777 //ENTER
+        "abc"
+
+in h1 or h2 echo "abc"
+
+see the log ouput :
+
+    sw 00:00:00:00:00:00:00:01 useage 2/5000
+    sw 00:00:00:00:00:00:00:01 useage 1/5000
