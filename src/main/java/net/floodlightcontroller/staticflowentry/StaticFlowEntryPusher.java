@@ -150,6 +150,18 @@ public class StaticFlowEntryPusher
         return size;
     }
 
+    /**
+     * used for debugging and unittests
+     * @return the number of static flow entries as cached from storage
+     */
+    public int countEntries(String dpid) {
+        int size = 0;
+        if (entriesFromStorage == null)
+            return 0;
+        size += entriesFromStorage.get(dpid).size();
+        return size;
+    }
+
     public IFloodlightProviderService getFloodlightProvider() {
         return floodlightProvider;
     }
