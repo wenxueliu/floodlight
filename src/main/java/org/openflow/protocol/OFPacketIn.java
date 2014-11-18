@@ -206,6 +206,6 @@ public class OFPacketIn extends OFMessage {
     public String toString() {
         String myStr = super.toString();
         return "packetIn" +
-            ":bufferId=" + U32.f(this.bufferId) + myStr;
+            ":bufferId=" + U32.f(this.bufferId) + "inPort=" + this.getInPort() + myStr;
     }
 }
