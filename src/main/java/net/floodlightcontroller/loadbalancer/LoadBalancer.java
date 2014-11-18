@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.HashMap;
@@ -78,6 +79,7 @@ import net.floodlightcontroller.restserver.IRestApiService;
 import net.floodlightcontroller.routing.IRoutingService;
 import net.floodlightcontroller.routing.Route;
 import net.floodlightcontroller.staticflowentry.IStaticFlowEntryPusherService;
+import net.floodlightcontroller.staticflowentry.StaticFlowEntryPusher;
 import net.floodlightcontroller.topology.ITopologyService;
 import net.floodlightcontroller.topology.NodePortTuple;
 import net.floodlightcontroller.util.MACAddress;
@@ -111,6 +113,7 @@ public class LoadBalancer implements IFloodlightModule,
     protected IRoutingService routingEngine;
     protected ITopologyService topology;
     protected IStaticFlowEntryPusherService sfp;
+    protected StaticFlowEntryPusher  staticFlowEntries;
     
     protected HashMap<String, LBVip> vips;
     protected HashMap<String, LBPool> pools;
@@ -119,14 +122,36 @@ public class LoadBalancer implements IFloodlightModule,
     protected HashMap<Integer, MACAddress> vipIpToMac;
     protected HashMap<Integer, String> memberIpToId;
     protected HashMap<IPClient, LBMember> clientToMember;
+
+    protected Map<String, Map<String, OFFlowMod>> swapFlowTables;
+    //protected Map<String, OFFlowMod> swapFlow;
     
     //Copied from Forwarding with message damper routine for pushing proxy Arp 
     protected static int OFMESSAGE_DAMPER_CAPACITY = 10000; // ms. 
     protected static int OFMESSAGE_DAMPER_TIMEOUT = 250; // ms 
     protected static String LB_ETHER_TYPE = "0x800";
     protected static int LB_PRIORITY = 32768;
-    protected static int MAX_FLOW_TABLES = 5000;
+    protected static int LB_PRIORITY_IN = LB_PRIORITY;
+    protected static int LB_PRIORITY_OUT = LB_PRIORITY;
+    protected static int MAX_FLOW_TABLES = 5000;// 12 for test
+    protected static int SWAP_SIZE = 200; // 8 for test
     
+    // Class to sort FlowMod's by priority, from lowest to highest
+    class FlowModSorter implements Comparator<String> {
+        private String dpid;
+        public FlowModSorter(String dpid) {
+            this.dpid = dpid;
+        }
+        @Override
+        public int compare(String o1, String o2) {
+            OFFlowMod f1 = sfp.getFlows(dpid).get(o1);
+            OFFlowMod f2 = sfp.getFlows(dpid).get(o2);
+            if (f1 == null || f2 == null) // sort active=false flows by key
+                return o1.compareTo(o2);
+            return U16.f(f1.getPriority()) - U16.f(f2.getPriority());
+        }
+    };
+
     // Comparator for sorting by SwitchCluster
     public Comparator<SwitchPort> clusterIdComparator =
             new Comparator<SwitchPort>() {
@@ -190,6 +215,7 @@ public class LoadBalancer implements IFloodlightModule,
             processPacketIn(IOFSwitch sw, OFPacketIn pi,
                             FloodlightContext cntx) {
         
+        log.info("PacketIn msg {}", pi.toString() );
         Ethernet eth = IFloodlightProviderService.bcStore.get(cntx,
                                                               IFloodlightProviderService.CONTEXT_PI_PAYLOAD);
         IPacket pkt = eth.getPayload();
@@ -490,13 +516,13 @@ public class LoadBalancer implements IFloodlightModule,
                     // out: match dest client (ip, port), rewrite src from member ip/port to vip ip/port, forward
                     
                     if (routeIn != null) {
-                        //pushStaticVipRoute(true, routeIn, client, member, sw.getId());
-                        pushStaticVipRoute(true, routeIn, client, member, sw);
+                        pushStaticVipRoute(true, routeIn, client, member, sw.getId());
+                        //pushStaticVipRoute(true, routeIn, client, member, sw);
                     }
                     
                     if (routeOut != null) {
-                        //pushStaticVipRoute(false, routeOut, client, member, sw.getId());
-                        pushStaticVipRoute(false, routeOut, client, member, sw);
+                        pushStaticVipRoute(false, routeOut, client, member, sw.getId());
+                        //pushStaticVipRoute(false, routeOut, client, member, sw);
                     }
 
                 }
@@ -519,8 +545,8 @@ public class LoadBalancer implements IFloodlightModule,
      * @param LBMember member
      * @param long pinSwitch
      */
-    //public void pushStaticVipRoute(boolean inBound, Route route, IPClient client, LBMember member, long pinSwitch) {
-    public void pushStaticVipRoute(boolean inBound, Route route, IPClient client, LBMember member, IOFSwitch swId) {
+    public void pushStaticVipRoute(boolean inBound, Route route, IPClient client, LBMember member, long pinSwitch) {
+    //public void pushStaticVipRoute(boolean inBound, Route route, IPClient client, LBMember member, IOFSwitch swId) {
         List<NodePortTuple> path = route.getPath();
         if (path.size()>0) {
            for (int i = 0; i < path.size(); i+=2) {
@@ -552,8 +578,8 @@ public class LoadBalancer implements IFloodlightModule,
                                + "dl_type="+LB_ETHER_TYPE+","
                                + "in_port="+String.valueOf(path.get(i).getPortId());
 
-                   //if (sw == pinSwitch) {
-                   if (sw == swId.getId()) {
+                   if (sw == pinSwitch) {
+                   //if (sw == swId.getId()) {
                        actionString = "set-dst-ip="+IPv4.fromIPv4Address(member.address)+"," 
                                 + "set-dst-mac="+member.macString+","
                                 + "output="+path.get(i+1).getPortId();
@@ -561,6 +587,9 @@ public class LoadBalancer implements IFloodlightModule,
                        actionString =
                                "output="+path.get(i+1).getPortId();
                    }
+
+                   fm.setPriority(U16.t(LB_PRIORITY_IN--));
+
                } else {
                    entryName = "outbound-vip-"+ member.vipId+"-client-"+client.ipAddress+"-port-"+client.targetPort
                            +"-srcswitch-"+path.get(0).getNodeId()+"-sw-"+sw;
@@ -570,8 +599,8 @@ public class LoadBalancer implements IFloodlightModule,
                                + "dl_type="+LB_ETHER_TYPE+","
                                + "in_port="+String.valueOf(path.get(i).getPortId());
 
-                   //if (sw == pinSwitch) {
-                   if (sw == swId.getId()) {
+                   if (sw == pinSwitch) {
+                   //if (sw == swId.getId()) {
                        actionString = "set-src-ip="+IPv4.fromIPv4Address(vips.get(member.vipId).address)+","
                                + "set-src-mac="+vips.get(member.vipId).proxyMac.toString()+","
                                + "output="+path.get(i+1).getPortId();
@@ -579,11 +608,12 @@ public class LoadBalancer implements IFloodlightModule,
                        actionString = "output="+path.get(i+1).getPortId();
                    }
                    
+                   fm.setPriority(U16.t(LB_PRIORITY_OUT--));
                }
                
                parseActionString(fm, actionString, log);
 
-               fm.setPriority(U16.t(LB_PRIORITY));
+               //fm.setPriority(U16.t(LB_PRIORITY));
 
                OFMatch ofMatch = new OFMatch();
                try {
@@ -595,14 +625,72 @@ public class LoadBalancer implements IFloodlightModule,
         
                fm.setMatch(ofMatch);
                sfp.addFlow(entryName, fm, swString);
-               int flowSize = sfp.getFlows(swId.getStringId()).size();
-               log.info("sw " + swId.getStringId() +  " useage " + flowSize + "/" + MAX_FLOW_TABLES);
-
+               this.traceFlowTable(swString);
+               this.swapFlowTable(swString);
            }
         }
         return;
     }
 
+    private void traceFlowTable(String swString)
+    {
+        Map<String, OFFlowMod> flowTables = sfp.getFlows(swString);
+        int flowTableSize = flowTables.size();
+        List<String> sortedList = new ArrayList<String>(flowTables.keySet());
+        Collections.sort( sortedList, new FlowModSorter(swString));
+        for(String entry: sortedList){
+            log.debug("entry {} flowTable {}",entry, flowTables.get(entry).toString());
+            log.info("entry:" + entry + " flowTable_priority:"
+                    + flowTables.get(entry).getPriority());
+        }
+        log.info("sw " + swString +  " useage " + flowTableSize + "/" + MAX_FLOW_TABLES);
+    }
+
+    private void swapFlowTable(String swString)
+    {
+        Map<String, OFFlowMod> flowTables = sfp.getFlows(swString);
+        List<String> sortedList = new ArrayList<String>(flowTables.keySet());
+        Collections.sort(sortedList, new FlowModSorter(swString));
+        int flowTableSize = flowTables.size();
+        log.info("swapFlowTables size " + swapFlowTables.size());
+        if ( (flowTableSize < MAX_FLOW_TABLES / 2) 
+                && (swapFlowTables.get(swString) != null) ){
+
+            Map<String, OFFlowMod> tmpFlow = swapFlowTables.get(swString);
+            log.info("\n Swap In ");
+            for (String entry: tmpFlow.keySet()){
+                //log.info("entry {}", entry);
+                log.info("entry:{}", entry);
+                log.debug("entry:" + entry + " swapFlow :" +
+                        swapFlowTables.get(swString).get(entry).toString());
+                sfp.addFlow(entry, tmpFlow.get(entry), swString);
+                swapFlowTables.get(swString).clear();
+            }
+        }
+        if (flowTableSize >= MAX_FLOW_TABLES) {
+            swapFlowTables.put(swString, new HashMap<String, OFFlowMod>());
+
+            log.info("\nTo Be Swaped FlowTables :");
+            for (int i = 0; i < SWAP_SIZE; i++){
+                String entry = sortedList.get(i);
+                log.info("entry {} ",entry);
+                log.debug("entry {} flowTables: {}",
+                        entry,flowTables.get(entry).toString());
+                swapFlowTables.get(swString).put(entry,flowTables.get(entry));
+                sfp.deleteFlow(entry);
+            }
+
+            Map<String, OFFlowMod> tmpFlows = swapFlowTables.get(swString);
+            log.info("\nHave Swaped FlowTables :");
+            for(String entry: tmpFlows.keySet()){
+                log.debug("entry {} swapFlowTable {}",entry, tmpFlows.get(entry).toString());
+                log.info("entry {} ",entry);
+            }
+            log.info("After Swap, Switch Flow Tables : ");
+
+            this.traceFlowTable(swString);
+        }
+    }
     
     @Override
     public Collection<LBVip> listVips() {
@@ -835,6 +923,7 @@ public class LoadBalancer implements IFloodlightModule,
                                             EnumSet.of(OFType.FLOW_MOD),
                                             OFMESSAGE_DAMPER_TIMEOUT);
         
+        swapFlowTables = new HashMap<String, Map<String, OFFlowMod>>();
         vips = new HashMap<String, LBVip>();
         pools = new HashMap<String, LBPool>();
         members = new HashMap<String, LBMember>();
