@@ -588,7 +588,7 @@ public class LoadBalancer implements IFloodlightModule,
                                "output="+path.get(i+1).getPortId();
                    }
 
-                   fm.setPriority(U16.t(LB_PRIORITY_IN--));
+                   fm.setPriority(U16.t(LB_PRIORITY_IN++));
 
                } else {
                    entryName = "outbound-vip-"+ member.vipId+"-client-"+client.ipAddress+"-port-"+client.targetPort
@@ -608,7 +608,7 @@ public class LoadBalancer implements IFloodlightModule,
                        actionString = "output="+path.get(i+1).getPortId();
                    }
                    
-                   fm.setPriority(U16.t(LB_PRIORITY_OUT--));
+                   fm.setPriority(U16.t(LB_PRIORITY_OUT++));
                }
                
                parseActionString(fm, actionString, log);
@@ -663,6 +663,9 @@ public class LoadBalancer implements IFloodlightModule,
         log.info("sw " + swString +  " swaped flow tables size " + swapFlowSize);
     }
 
+    /**
+     @TODO trace the exception when controller is down, write the swapFlowTables to disk
+     */
     private void swapFlowTable(String swString)
     {
         Map<String, OFFlowMod> switchFlows = sfp.getFlows(swString);
