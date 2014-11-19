@@ -133,8 +133,8 @@ public class LoadBalancer implements IFloodlightModule,
     protected static int LB_PRIORITY = 32768;
     protected static int LB_PRIORITY_IN = LB_PRIORITY;
     protected static int LB_PRIORITY_OUT = LB_PRIORITY;
-    protected static int MAX_FLOW_TABLES = 5000;// 12 for test
-    protected static int SWAP_SIZE = 200; // 8 for test
+    protected static int MAX_FLOW_TABLES = 12;// 12 for test
+    protected static int SWAP_SIZE = 4; // 8 for test
     
     // Class to sort FlowMod's by priority, from lowest to highest
     class FlowModSorter implements Comparator<String> {
@@ -624,74 +624,87 @@ public class LoadBalancer implements IFloodlightModule,
                }
         
                fm.setMatch(ofMatch);
+
+               Map<String, OFFlowMod> swapFlow = swapFlowTables.get(swString);
+               if ((swapFlow != null) && swapFlow.get(entryName) != null){
+                   log.info("swap in a swaped flow {} to swith", entryName);
+                   swapFlowTables.get(swString).remove(entryName);
+                   this.traceSwapFlows(swString);
+               }
                sfp.addFlow(entryName, fm, swString);
-               this.traceFlowTable(swString);
+               this.traceSwitchFlows(swString);
                this.swapFlowTable(swString);
            }
         }
         return;
     }
 
-    private void traceFlowTable(String swString)
+    private void traceSwitchFlows(String swString)
     {
-        Map<String, OFFlowMod> flowTables = sfp.getFlows(swString);
-        int flowTableSize = flowTables.size();
-        List<String> sortedList = new ArrayList<String>(flowTables.keySet());
-        Collections.sort( sortedList, new FlowModSorter(swString));
-        for(String entry: sortedList){
-            log.debug("entry {} flowTable {}",entry, flowTables.get(entry).toString());
+        Map<String, OFFlowMod> switchFlows = sfp.getFlows(swString);
+        int switchFlowSize = switchFlows.size();
+        for( String entry: switchFlows.keySet() ){
+            log.debug("entry {} flowTable {}", entry, switchFlows.get(entry).toString());
             log.info("entry:" + entry + " flowTable_priority:"
-                    + flowTables.get(entry).getPriority());
+                    + switchFlows.get(entry).getPriority());
         }
-        log.info("sw " + swString +  " useage " + flowTableSize + "/" + MAX_FLOW_TABLES);
+        log.info("sw " + swString +  " useage " + switchFlowSize + "/" + MAX_FLOW_TABLES);
+    }
+
+    private void traceSwapFlows(String swString)
+    {
+        Map<String, OFFlowMod> swapFlows = swapFlowTables.get(swString);
+        int swapFlowSize = swapFlows.size();
+        for( String entry: swapFlows.keySet() ){
+            log.debug("entry {} flowTable {}", entry, swapFlows.get(entry).toString());
+            log.info("entry:" + entry + " flowTable_priority:"
+                    + swapFlows.get(entry).getPriority());
+        }
+        log.info("sw " + swString +  " swaped flow tables size " + swapFlowSize);
     }
 
     private void swapFlowTable(String swString)
     {
-        Map<String, OFFlowMod> flowTables = sfp.getFlows(swString);
-        List<String> sortedList = new ArrayList<String>(flowTables.keySet());
-        Collections.sort(sortedList, new FlowModSorter(swString));
-        int flowTableSize = flowTables.size();
-        log.info("swapFlowTables size " + swapFlowTables.size());
-        if ( (flowTableSize < MAX_FLOW_TABLES / 2) 
+        Map<String, OFFlowMod> switchFlows = sfp.getFlows(swString);
+        int switchFlowSize = switchFlows.size();
+        if ( (MAX_FLOW_TABLES - switchFlowSize > SWAP_SIZE) 
                 && (swapFlowTables.get(swString) != null) ){
 
-            Map<String, OFFlowMod> tmpFlow = swapFlowTables.get(swString);
+            Map<String, OFFlowMod> swapFlows = swapFlowTables.get(swString);
             log.info("\n Swap In ");
-            for (String entry: tmpFlow.keySet()){
-                //log.info("entry {}", entry);
+            for (String entry: swapFlows.keySet()){
                 log.info("entry:{}", entry);
                 log.debug("entry:" + entry + " swapFlow :" +
                         swapFlowTables.get(swString).get(entry).toString());
-                sfp.addFlow(entry, tmpFlow.get(entry), swString);
-                swapFlowTables.get(swString).clear();
+                sfp.addFlow(entry, swapFlows.get(entry), swString);
             }
+            swapFlowTables.get(swString).clear();
+            swapFlowTables.remove(swString);
+            return ;
         }
-        if (flowTableSize >= MAX_FLOW_TABLES) {
+
+        if ( switchFlowSize >= MAX_FLOW_TABLES ) {
+            List<String> sortedList = new ArrayList<String>(switchFlows.keySet());
+            Collections.sort(sortedList, new FlowModSorter(swString));
             swapFlowTables.put(swString, new HashMap<String, OFFlowMod>());
 
             log.info("\nTo Be Swaped FlowTables :");
             for (int i = 0; i < SWAP_SIZE; i++){
                 String entry = sortedList.get(i);
-                log.info("entry {} ",entry);
+                log.info("entry {} ", entry);
                 log.debug("entry {} flowTables: {}",
-                        entry,flowTables.get(entry).toString());
-                swapFlowTables.get(swString).put(entry,flowTables.get(entry));
+                        entry, switchFlows.get(entry).toString());
+                swapFlowTables.get(swString).put(entry, switchFlows.get(entry));
                 sfp.deleteFlow(entry);
             }
 
-            Map<String, OFFlowMod> tmpFlows = swapFlowTables.get(swString);
             log.info("\nHave Swaped FlowTables :");
-            for(String entry: tmpFlows.keySet()){
-                log.debug("entry {} swapFlowTable {}",entry, tmpFlows.get(entry).toString());
-                log.info("entry {} ",entry);
-            }
+            this.traceSwapFlows(swString);
             log.info("After Swap, Switch Flow Tables : ");
-
-            this.traceFlowTable(swString);
+            this.traceSwitchFlows(swString);
         }
     }
-    
+
     @Override
     public Collection<LBVip> listVips() {
         return vips.values();
