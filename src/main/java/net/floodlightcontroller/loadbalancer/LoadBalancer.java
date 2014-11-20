@@ -30,6 +30,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import org.openflow.protocol.OFFlowMod;
 import org.openflow.protocol.OFMatch;
@@ -38,6 +40,14 @@ import org.openflow.protocol.OFPacketIn;
 import org.openflow.protocol.OFPacketOut;
 import org.openflow.protocol.OFPort;
 import org.openflow.protocol.OFType;
+import org.openflow.protocol.OFStatisticsRequest;
+import org.openflow.protocol.statistics.OFFlowStatisticsReply;
+import org.openflow.protocol.statistics.OFAggregateStatisticsRequest;
+import org.openflow.protocol.statistics.OFFlowStatisticsRequest;
+import org.openflow.protocol.statistics.OFPortStatisticsRequest;
+import org.openflow.protocol.statistics.OFQueueStatisticsRequest;
+import org.openflow.protocol.statistics.OFStatistics;
+import org.openflow.protocol.statistics.OFStatisticsType;
 import org.openflow.protocol.action.OFAction;
 import org.openflow.protocol.action.OFActionDataLayerDestination;
 import org.openflow.protocol.action.OFActionDataLayerSource;
@@ -133,22 +143,46 @@ public class LoadBalancer implements IFloodlightModule,
     protected static int LB_PRIORITY = 32768;
     protected static int LB_PRIORITY_IN = LB_PRIORITY;
     protected static int LB_PRIORITY_OUT = LB_PRIORITY;
-    protected static int MAX_FLOW_TABLES = 12;// 12 for test
-    protected static int SWAP_SIZE = 4; // 8 for test
+    protected static int MAX_FLOW_TABLES = 6;// 12 for test
+    protected static int SWAP_SIZE = 2; // 8 for test
     
     // Class to sort FlowMod's by priority, from lowest to highest
-    class FlowModSorter implements Comparator<String> {
-        private String dpid;
-        public FlowModSorter(String dpid) {
-            this.dpid = dpid;
+    //class FlowModSorter implements Comparator<String> {
+    //    private String dpid;
+    //    public FlowModSorter(String dpid) {
+    //        this.dpid = dpid;
+    //    }
+    //    @Override
+    //    public int compare(String o1, String o2) {
+    //        OFFlowMod f1 = sfp.getFlows(dpid).get(o1);
+    //        OFFlowMod f2 = sfp.getFlows(dpid).get(o2);
+    //        if (f1 == null || f2 == null) // sort active=false flows by key
+    //            return o1.compareTo(o2);
+    //        return U16.f(f1.getPriority()) - U16.f(f2.getPriority());
+    //    }
+    //};
+
+    class FlowModSorter implements Comparator<OFFlowStatisticsReply> {
+        private String attr;
+        public FlowModSorter(String attr) {
+            this.attr = attr;
         }
         @Override
-        public int compare(String o1, String o2) {
-            OFFlowMod f1 = sfp.getFlows(dpid).get(o1);
-            OFFlowMod f2 = sfp.getFlows(dpid).get(o2);
-            if (f1 == null || f2 == null) // sort active=false flows by key
-                return o1.compareTo(o2);
-            return U16.f(f1.getPriority()) - U16.f(f2.getPriority());
+        public int compare(OFFlowStatisticsReply f1, OFFlowStatisticsReply f2) {
+            int ret = 0;
+            if (f1 != null && f2 != null) {
+                if (this.attr.equalsIgnoreCase("durationseconds")) {
+                    log.info("compare f1 " + f1.getDurationSeconds() + " to f2 "
+                            + f2.getDurationSeconds());
+                    ret = f1.getDurationSeconds() - f1.getDurationSeconds();
+                } else if (this.attr.equalsIgnoreCase("packetCount")) {
+                    ret = (int)(f1.getPacketCount() - f1.getPacketCount());
+                } else if (this.attr.equalsIgnoreCase("bytecount")) {
+                    ret = (int)(f1.getByteCount() - f1.getByteCount());
+                } else
+                    ret = f1.getDurationSeconds() - f1.getDurationSeconds();
+            }
+            return ret;
         }
     };
 
@@ -215,7 +249,7 @@ public class LoadBalancer implements IFloodlightModule,
             processPacketIn(IOFSwitch sw, OFPacketIn pi,
                             FloodlightContext cntx) {
         
-        log.info("PacketIn msg {}", pi.toString() );
+        //log.info("PacketIn msg {}", pi.toString() );
         Ethernet eth = IFloodlightProviderService.bcStore.get(cntx,
                                                               IFloodlightProviderService.CONTEXT_PI_PAYLOAD);
         IPacket pkt = eth.getPayload();
@@ -516,13 +550,13 @@ public class LoadBalancer implements IFloodlightModule,
                     // out: match dest client (ip, port), rewrite src from member ip/port to vip ip/port, forward
                     
                     if (routeIn != null) {
-                        pushStaticVipRoute(true, routeIn, client, member, sw.getId());
-                        //pushStaticVipRoute(true, routeIn, client, member, sw);
+                        //pushStaticVipRoute(true, routeIn, client, member, sw.getId());
+                        pushStaticVipRoute(true, routeIn, client, member, sw);
                     }
                     
                     if (routeOut != null) {
-                        pushStaticVipRoute(false, routeOut, client, member, sw.getId());
-                        //pushStaticVipRoute(false, routeOut, client, member, sw);
+                        //pushStaticVipRoute(false, routeOut, client, member, sw.getId());
+                        pushStaticVipRoute(false, routeOut, client, member, sw);
                     }
 
                 }
@@ -545,13 +579,13 @@ public class LoadBalancer implements IFloodlightModule,
      * @param LBMember member
      * @param long pinSwitch
      */
-    public void pushStaticVipRoute(boolean inBound, Route route, IPClient client, LBMember member, long pinSwitch) {
-    //public void pushStaticVipRoute(boolean inBound, Route route, IPClient client, LBMember member, IOFSwitch swId) {
+    //public void pushStaticVipRoute(boolean inBound, Route route, IPClient client, LBMember member, long pinSwitch) {
+    public void pushStaticVipRoute(boolean inBound, Route route, IPClient client, LBMember member, IOFSwitch sw) {
         List<NodePortTuple> path = route.getPath();
         if (path.size()>0) {
            for (int i = 0; i < path.size(); i+=2) {
                
-               long sw = path.get(i).getNodeId();
+               long swId = path.get(i).getNodeId();
                String swString = HexString.toHexString(path.get(i).getNodeId());
                String entryName;
                String matchString = null;
@@ -578,8 +612,8 @@ public class LoadBalancer implements IFloodlightModule,
                                + "dl_type="+LB_ETHER_TYPE+","
                                + "in_port="+String.valueOf(path.get(i).getPortId());
 
-                   if (sw == pinSwitch) {
-                   //if (sw == swId.getId()) {
+                   //if (sw == pinSwitch) {
+                   if (swId == sw.getId()) {
                        actionString = "set-dst-ip="+IPv4.fromIPv4Address(member.address)+"," 
                                 + "set-dst-mac="+member.macString+","
                                 + "output="+path.get(i+1).getPortId();
@@ -599,8 +633,8 @@ public class LoadBalancer implements IFloodlightModule,
                                + "dl_type="+LB_ETHER_TYPE+","
                                + "in_port="+String.valueOf(path.get(i).getPortId());
 
-                   if (sw == pinSwitch) {
-                   //if (sw == swId.getId()) {
+                   //if (sw == pinSwitch) {
+                   if (swId == sw.getId()) {
                        actionString = "set-src-ip="+IPv4.fromIPv4Address(vips.get(member.vipId).address)+","
                                + "set-src-mac="+vips.get(member.vipId).proxyMac.toString()+","
                                + "output="+path.get(i+1).getPortId();
@@ -629,18 +663,19 @@ public class LoadBalancer implements IFloodlightModule,
                if ((swapFlow != null) && swapFlow.get(entryName) != null){
                    log.info("swap in a swaped flow {} to swith", entryName);
                    swapFlowTables.get(swString).remove(entryName);
-                   this.traceSwapFlows(swString);
+                   this.traceSwapFlows(sw);
                }
                sfp.addFlow(entryName, fm, swString);
-               this.traceSwitchFlows(swString);
-               this.swapFlowTable(swString);
+               this.traceSwitchFlows(sw);
+               this.swapFlowTable(sw);
            }
         }
         return;
     }
 
-    private void traceSwitchFlows(String swString)
+    private void traceSwitchFlows(IOFSwitch sw)
     {
+        String swString = sw.getStringId();
         Map<String, OFFlowMod> switchFlows = sfp.getFlows(swString);
         int switchFlowSize = switchFlows.size();
         for( String entry: switchFlows.keySet() ){
@@ -651,8 +686,9 @@ public class LoadBalancer implements IFloodlightModule,
         log.info("sw " + swString +  " useage " + switchFlowSize + "/" + MAX_FLOW_TABLES);
     }
 
-    private void traceSwapFlows(String swString)
+    private void traceSwapFlows(IOFSwitch sw)
     {
+        String swString = sw.getStringId();
         Map<String, OFFlowMod> swapFlows = swapFlowTables.get(swString);
         int swapFlowSize = swapFlows.size();
         for( String entry: swapFlows.keySet() ){
@@ -666,8 +702,9 @@ public class LoadBalancer implements IFloodlightModule,
     /**
      @TODO trace the exception when controller is down, write the swapFlowTables to disk
      */
-    private void swapFlowTable(String swString)
+    private void swapFlowTable(IOFSwitch sw)
     {
+        String swString = sw.getStringId();
         Map<String, OFFlowMod> switchFlows = sfp.getFlows(swString);
         int switchFlowSize = switchFlows.size();
         if ( (MAX_FLOW_TABLES - switchFlowSize > SWAP_SIZE) 
@@ -687,25 +724,102 @@ public class LoadBalancer implements IFloodlightModule,
         }
 
         if ( switchFlowSize >= MAX_FLOW_TABLES ) {
-            List<String> sortedList = new ArrayList<String>(switchFlows.keySet());
-            Collections.sort(sortedList, new FlowModSorter(swString));
-            swapFlowTables.put(swString, new HashMap<String, OFFlowMod>());
+            //List<String> sortedList = new ArrayList<String>(switchFlows.keySet());
+            List<OFStatistics> statisticList = 
+                new ArrayList<OFStatistics>(getSwitchStatistics(sw, OFStatisticsType.FLOW));
 
-            log.info("\nTo Be Swaped FlowTables :");
+            log.info("statisticList size " + statisticList.size());
+            List<OFFlowStatisticsReply> sortedList =
+                (List<OFFlowStatisticsReply>)(List<?>)statisticList;
+
+            Collections.sort(sortedList, new FlowModSorter("durationseconds"));
+            log.info("sortedList size" + statisticList.size());
+
+            List<OFMatch> ofmatchList = new ArrayList<OFMatch>(); 
             for (int i = 0; i < SWAP_SIZE; i++){
-                String entry = sortedList.get(i);
-                log.info("entry {} ", entry);
-                log.debug("entry {} flowTables: {}",
-                        entry, switchFlows.get(entry).toString());
-                swapFlowTables.get(swString).put(entry, switchFlows.get(entry));
-                sfp.deleteFlow(entry);
+                ofmatchList.add(sortedList.get(i).getMatch());
+            }
+
+            swapFlowTables.put(swString, new HashMap<String, OFFlowMod>());
+            log.info("\nTo Be Swaped FlowTables :");
+            for (String entry : switchFlows.keySet()){
+                if ( ofmatchList.contains(switchFlows.get(entry).getMatch()) ){
+                    log.info("entry {} ", entry);
+                    log.debug("entry {} flowTables: {}",
+                            entry, switchFlows.get(entry).toString());
+                    swapFlowTables.get(swString).put(entry, switchFlows.get(entry));
+                    sfp.deleteFlow(entry);
+                }
             }
 
             log.info("\nHave Swaped FlowTables :");
-            this.traceSwapFlows(swString);
+            this.traceSwapFlows(sw);
             log.info("After Swap, Switch Flow Tables : ");
-            this.traceSwitchFlows(swString);
+            this.traceSwitchFlows(sw);
         }
+    }
+
+    protected List<OFStatistics> getSwitchStatistics(IOFSwitch sw,
+                                                     OFStatisticsType statType) {
+
+        Future<List<OFStatistics>> future;
+        List<OFStatistics> values = null;
+        if (sw != null) {
+            OFStatisticsRequest req = new OFStatisticsRequest();
+            req.setStatisticType(statType);
+            int requestLength = req.getLengthU();
+            if (statType == OFStatisticsType.FLOW) {
+                OFFlowStatisticsRequest specificReq = new OFFlowStatisticsRequest();
+                OFMatch match = new OFMatch();
+                match.setWildcards(0xffffffff);
+                specificReq.setMatch(match);
+                specificReq.setOutPort(OFPort.OFPP_NONE.getValue());
+                specificReq.setTableId((byte) 0xff);
+                req.setStatistics(Collections.singletonList((OFStatistics)specificReq));
+                requestLength += specificReq.getLength();
+            } else if (statType == OFStatisticsType.AGGREGATE) {
+                OFAggregateStatisticsRequest specificReq = new OFAggregateStatisticsRequest();
+                OFMatch match = new OFMatch();
+                match.setWildcards(0xffffffff);
+                specificReq.setMatch(match);
+                specificReq.setOutPort(OFPort.OFPP_NONE.getValue());
+                specificReq.setTableId((byte) 0xff);
+                req.setStatistics(Collections.singletonList((OFStatistics)specificReq));
+                requestLength += specificReq.getLength();
+            } else if (statType == OFStatisticsType.PORT) {
+                OFPortStatisticsRequest specificReq = new OFPortStatisticsRequest();
+                specificReq.setPortNumber(OFPort.OFPP_NONE.getValue());
+                req.setStatistics(Collections.singletonList((OFStatistics)specificReq));
+                requestLength += specificReq.getLength();
+            } else if (statType == OFStatisticsType.QUEUE) {
+                OFQueueStatisticsRequest specificReq = new OFQueueStatisticsRequest();
+                specificReq.setPortNumber(OFPort.OFPP_ALL.getValue());
+                // LOOK! openflowj does not define OFPQ_ALL! pulled this from openflow.h
+                // note that I haven't seen this work yet though...
+                specificReq.setQueueId(0xffffffff);
+                req.setStatistics(Collections.singletonList((OFStatistics)specificReq));
+                requestLength += specificReq.getLength();
+            } else if (statType == OFStatisticsType.DESC ||
+                       statType == OFStatisticsType.TABLE) {
+                // pass - nothing todo besides set the type above
+            }
+            req.setLengthU(requestLength);
+            try {
+                future = sw.queryStatistics(req);
+                values = future.get(10, TimeUnit.SECONDS);
+                log.info("value size : " + values.size());
+                log.info("value size : " + future.get(10, TimeUnit.SECONDS).size());
+            } catch (Exception e) {
+                log.error("Failure retrieving statistics from switch " + sw, e);
+            }
+        }
+        return values;
+    }
+
+    protected List<OFStatistics> getSwitchStatistics(long switchId,
+                                                     OFStatisticsType statType) {
+        IOFSwitch sw = floodlightProvider.getSwitch(switchId);
+        return this.getSwitchStatistics(sw, statType);
     }
 
     @Override

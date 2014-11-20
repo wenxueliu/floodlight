@@ -37,7 +37,7 @@ import os.path
 def loaderbanlanceNet():
 
     "Create a network from semi-scratch with one controller."
-    ip_controller="192.168.1.83"
+    ip_controller="192.168.1.88"
     ip_switch="10.0.0.5"
     bw_link=100 # 100 M
     delay_link='0ms'
