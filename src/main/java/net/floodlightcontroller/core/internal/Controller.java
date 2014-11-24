@@ -1934,6 +1934,28 @@ public class Controller implements IFloodlightProviderService,
         }
     }
 
+    private void logListener(){
+        for (Map.Entry<OFType,
+                       ListenerDispatcher<OFType,
+                                          IOFMessageListener>> entry
+             : messageListeners.entrySet()) {
+
+            OFType type = entry.getKey();
+            ListenerDispatcher<OFType, IOFMessageListener> ldd =
+                    entry.getValue();
+
+            StringBuilder sb = new StringBuilder();
+            sb.append("OFListeners for ");
+            sb.append(type);
+            sb.append(": ");
+            for (IOFMessageListener l : ldd.getOrderedListeners()) {
+                sb.append(l.getName());
+                sb.append(",");
+            }
+            log.info(sb.toString());
+        }
+    }
+
     private void logListeners() {
         for (Map.Entry<OFType,
                        ListenerDispatcher<OFType,
@@ -2153,6 +2175,7 @@ public class Controller implements IFloodlightProviderService,
         if (log.isDebugEnabled()) {
             logListeners();
         }
+        logListener();
 
         try {
            final ServerBootstrap bootstrap = createServerBootStrap();

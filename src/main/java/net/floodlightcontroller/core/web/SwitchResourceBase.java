@@ -30,6 +30,7 @@ import org.openflow.protocol.OFFeaturesReply;
 import org.openflow.protocol.OFMatch;
 import org.openflow.protocol.OFPort;
 import org.openflow.protocol.OFStatisticsRequest;
+import org.openflow.protocol.statistics.OFFlowStatisticsReply;
 import org.openflow.protocol.statistics.OFAggregateStatisticsRequest;
 import org.openflow.protocol.statistics.OFFlowStatisticsRequest;
 import org.openflow.protocol.statistics.OFPortStatisticsRequest;
@@ -119,6 +120,12 @@ public class SwitchResourceBase extends ServerResource {
             try {
                 future = sw.queryStatistics(req);
                 values = future.get(10, TimeUnit.SECONDS);
+                log.info("value size : " + values.size());
+                for (int i = 0; i < values.size(); i++){
+                    OFFlowStatisticsReply flowTmp = (OFFlowStatisticsReply)values.get(i);
+                    log.debug("flow table: {}" + flowTmp.toString());
+                    log.info("flow tabels durationSeconds " + flowTmp.getDurationSeconds());
+                }
             } catch (Exception e) {
                 log.error("Failure retrieving statistics from switch " + sw, e);
             }

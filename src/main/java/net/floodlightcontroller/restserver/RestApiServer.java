@@ -109,6 +109,8 @@ public class RestApiServer
                     logger.trace("Adding {} for service {} into context",
                                  s.getCanonicalName(), fmlContext.getServiceImpl(s));
                 }
+                logger.info("Adding {} for service {} into context",
+                                s.getCanonicalName(), fmlContext.getServiceImpl(s));
                 context.getAttributes().put(s.getCanonicalName(), 
                                             fmlContext.getServiceImpl(s));
             }
@@ -196,6 +198,9 @@ public class RestApiServer
         
         // read our config options
         Map<String, String> configOptions = context.getConfigParams(this);
+        for(String configkey: configOptions.keySet()){
+            logger.info("{}:{}",configkey,configOptions.get(configkey));
+        }
         restHost = configOptions.get("host");
         if (restHost == null) {
             Map<String, String> providerConfigOptions = context.getConfigParams(
@@ -209,6 +214,7 @@ public class RestApiServer
         if (port != null) {
             restPort = Integer.parseInt(port);
         }
+        logger.info("host:{} port:{}",restHost, restPort);
         logger.debug("REST port set to {}", restPort);
     }
 

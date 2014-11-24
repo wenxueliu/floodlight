@@ -315,6 +315,14 @@ public class PortDownReconciliation implements IFloodlightModule,
             // System.out.println(sw.getStatistics(req));
             future = sw.queryStatistics(req);
             values = future.get(10, TimeUnit.SECONDS);
+            log.info("value size : " + values.size());
+            log.info("value size : " + future.get(10, TimeUnit.SECONDS).size());
+            for (int i = 0; i < values.size(); i++){
+                OFFlowStatisticsReply flowTmp =
+                    (OFFlowStatisticsReply)values.get(i);
+                log.debug("flow tabels: {}",flowTmp.toString());
+                log.info("flow tabels durationseconds " + flowTmp.getDurationSeconds());
+            }
             if (values != null) {
                 for (OFStatistics stat : values) {
                     statsReply.add((OFFlowStatisticsReply) stat);
