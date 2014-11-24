@@ -29,15 +29,18 @@ from mininet.util import dumpNodeConnections
 import time
 import os 
 import os.path
+import sys
 
 
 
 #ip_controller,ip_switch,bw_link,delay_link,loss_link
 
-def loaderbanlanceNet():
+def loaderbanlanceNet(control_ip):
 
     "Create a network from semi-scratch with one controller."
-    ip_controller="192.168.1.88"
+    if not control_ip:
+        sys.exit(1)
+    ip_controller=control_ip
     ip_switch="10.0.0.5"
     bw_link=100 # 100 M
     delay_link='0ms'
@@ -116,4 +119,8 @@ def loaderbanlanceNet():
     net.stop()
 
 if __name__ == '__main__':
-    loaderbanlanceNet()
+    if len(sys.argv) > 1:
+        loaderbanlanceNet(argv[1])
+    else:
+        print "Usage: python %s control_ip" %sys.argv[0]
+        sys.exit(1)
