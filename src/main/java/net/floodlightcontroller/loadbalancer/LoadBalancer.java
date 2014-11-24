@@ -622,7 +622,7 @@ public class LoadBalancer implements IFloodlightModule,
                                "output="+path.get(i+1).getPortId();
                    }
 
-                   fm.setPriority(U16.t(LB_PRIORITY_IN++));
+                   //fm.setPriority(U16.t(LB_PRIORITY_IN++));
 
                } else {
                    entryName = "outbound-vip-"+ member.vipId+"-client-"+client.ipAddress+"-port-"+client.targetPort
@@ -642,12 +642,12 @@ public class LoadBalancer implements IFloodlightModule,
                        actionString = "output="+path.get(i+1).getPortId();
                    }
                    
-                   fm.setPriority(U16.t(LB_PRIORITY_OUT++));
+                   //fm.setPriority(U16.t(LB_PRIORITY_OUT++));
                }
                
                parseActionString(fm, actionString, log);
 
-               //fm.setPriority(U16.t(LB_PRIORITY));
+               fm.setPriority(U16.t(LB_PRIORITY));
 
                OFMatch ofMatch = new OFMatch();
                try {
@@ -705,7 +705,10 @@ public class LoadBalancer implements IFloodlightModule,
     private void swapFlowTable(IOFSwitch sw)
     {
         String swString = sw.getStringId();
-        Map<String, OFFlowMod> switchFlows = sfp.getFlows(swString);
+        Map<String, OFFlowMod> switchFlows = new HashMap<String, OFFlowMod>();
+        for(String key: sfp.getFlows(swString).keySet()){
+            switchFlows.put(key,sfp.getFlows(swString).get(key));
+        }
         int switchFlowSize = switchFlows.size();
         if ( (MAX_FLOW_TABLES - switchFlowSize > SWAP_SIZE) 
                 && (swapFlowTables.get(swString) != null) ){
@@ -725,31 +728,56 @@ public class LoadBalancer implements IFloodlightModule,
 
         if ( switchFlowSize >= MAX_FLOW_TABLES ) {
             //List<String> sortedList = new ArrayList<String>(switchFlows.keySet());
+            log.info("arg of getSwitchStatistics  pin switch " + sw.getId());
             List<OFStatistics> statisticList = 
-                new ArrayList<OFStatistics>(getSwitchStatistics(sw, OFStatisticsType.FLOW));
+                new ArrayList<OFStatistics>(getSwitchStatistics(sw.getId(), OFStatisticsType.FLOW));
 
             log.info("statisticList size " + statisticList.size());
             List<OFFlowStatisticsReply> sortedList =
                 (List<OFFlowStatisticsReply>)(List<?>)statisticList;
+            for(int i = 0; i < sortedList.size(); i++){
+                log.info("durationseconds " + sortedList.get(i).getDurationSeconds());
+            }
 
             Collections.sort(sortedList, new FlowModSorter("durationseconds"));
-            log.info("sortedList size" + statisticList.size());
+            log.info("sortedList size " + statisticList.size());
 
             List<OFMatch> ofmatchList = new ArrayList<OFMatch>(); 
-            for (int i = 0; i < SWAP_SIZE; i++){
+            for (int i = 0; i < SWAP_SIZE && i < sortedList.size(); i++){
+                log.info("ofmatchList " + i);
                 ofmatchList.add(sortedList.get(i).getMatch());
+            }
+
+            log.info("ofmatchList size : " + ofmatchList.size());
+            for(int i = 0; i < ofmatchList.size(); i++){
+                log.info(i + " {} " + ofmatchList.get(i).toString());
             }
 
             swapFlowTables.put(swString, new HashMap<String, OFFlowMod>());
             log.info("\nTo Be Swaped FlowTables :");
+            //for (String entry : switchFlows.keySet()){
+            //    for (int i = 0; i < ofmatchList.size(); i++){
+            //        if ( ofmatchList.get(i).match(switchFlows.get(entry).getMatch()) ){
+            //            log.info("entry {} ", entry);
+            //            log.debug("entry {} flowTables: {}",
+            //                    entry, switchFlows.get(entry).toString());
+            //            swapFlowTables.get(swString).put(entry, switchFlows.get(entry));
+            //            sfp.deleteFlow(entry);
+            //        }
+            //    }
+            //}
+
+            int swap_size = 0;
             for (String entry : switchFlows.keySet()){
-                if ( ofmatchList.contains(switchFlows.get(entry).getMatch()) ){
-                    log.info("entry {} ", entry);
-                    log.debug("entry {} flowTables: {}",
-                            entry, switchFlows.get(entry).toString());
-                    swapFlowTables.get(swString).put(entry, switchFlows.get(entry));
-                    sfp.deleteFlow(entry);
+                if (swap_size >= SWAP_SIZE){
+                    break;
                 }
+                log.info("entry {} ", entry);
+                log.debug("entry {} flowTables: {}",
+                        entry, switchFlows.get(entry).toString());
+                swapFlowTables.get(swString).put(entry, switchFlows.get(entry));
+                sfp.deleteFlow(entry);
+                swap_size += 1;
             }
 
             log.info("\nHave Swaped FlowTables :");
@@ -770,9 +798,7 @@ public class LoadBalancer implements IFloodlightModule,
             int requestLength = req.getLengthU();
             if (statType == OFStatisticsType.FLOW) {
                 OFFlowStatisticsRequest specificReq = new OFFlowStatisticsRequest();
-                OFMatch match = new OFMatch();
-                match.setWildcards(0xffffffff);
-                specificReq.setMatch(match);
+                specificReq.setMatch(new OFMatch().setWildcards(0xffffffff));
                 specificReq.setOutPort(OFPort.OFPP_NONE.getValue());
                 specificReq.setTableId((byte) 0xff);
                 req.setStatistics(Collections.singletonList((OFStatistics)specificReq));
@@ -806,9 +832,15 @@ public class LoadBalancer implements IFloodlightModule,
             req.setLengthU(requestLength);
             try {
                 future = sw.queryStatistics(req);
+                log.info("sw {} wait for 10 seconds for statistics",sw.getStringId());
                 values = future.get(10, TimeUnit.SECONDS);
                 log.info("value size : " + values.size());
                 log.info("value size : " + future.get(10, TimeUnit.SECONDS).size());
+                for (int i = 0; i < values.size(); i++){
+                    OFFlowStatisticsReply flowTmp =
+                        (OFFlowStatisticsReply)values.get(i);
+                    log.info("durationseconds: " + flowTmp.getDurationSeconds());
+                }
             } catch (Exception e) {
                 log.error("Failure retrieving statistics from switch " + sw, e);
             }
