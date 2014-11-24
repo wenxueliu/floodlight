@@ -666,7 +666,7 @@ public class LoadBalancer implements IFloodlightModule,
                    this.traceSwapFlows(sw);
                }
                sfp.addFlow(entryName, fm, swString);
-               this.traceSwitchFlows(sw);
+               //this.traceSwitchFlows(sw);
                this.swapFlowTable(sw);
            }
         }
@@ -710,21 +710,21 @@ public class LoadBalancer implements IFloodlightModule,
             switchFlows.put(key,sfp.getFlows(swString).get(key));
         }
         int switchFlowSize = switchFlows.size();
-        if ( (MAX_FLOW_TABLES - switchFlowSize > SWAP_SIZE) 
-                && (swapFlowTables.get(swString) != null) ){
+        //if ( (MAX_FLOW_TABLES - switchFlowSize > SWAP_SIZE) 
+        //        && (swapFlowTables.get(swString) != null) ){
 
-            Map<String, OFFlowMod> swapFlows = swapFlowTables.get(swString);
-            log.info("\n Swap In ");
-            for (String entry: swapFlows.keySet()){
-                log.info("entry:{}", entry);
-                log.debug("entry:" + entry + " swapFlow :" +
-                        swapFlowTables.get(swString).get(entry).toString());
-                sfp.addFlow(entry, swapFlows.get(entry), swString);
-            }
-            swapFlowTables.get(swString).clear();
-            swapFlowTables.remove(swString);
-            return ;
-        }
+        //    Map<String, OFFlowMod> swapFlows = swapFlowTables.get(swString);
+        //    log.info("\n Swap In ");
+        //    for (String entry: swapFlows.keySet()){
+        //        log.info("entry:{}", entry);
+        //        log.debug("entry:" + entry + " swapFlow :" +
+        //                swapFlowTables.get(swString).get(entry).toString());
+        //        sfp.addFlow(entry, swapFlows.get(entry), swString);
+        //    }
+        //    swapFlowTables.get(swString).clear();
+        //    swapFlowTables.remove(swString);
+        //    return ;
+        //}
 
         if ( switchFlowSize >= MAX_FLOW_TABLES ) {
             //List<String> sortedList = new ArrayList<String>(switchFlows.keySet());
@@ -733,28 +733,28 @@ public class LoadBalancer implements IFloodlightModule,
                 new ArrayList<OFStatistics>(getSwitchStatistics(sw.getId(), OFStatisticsType.FLOW));
 
             log.info("statisticList size " + statisticList.size());
-            List<OFFlowStatisticsReply> sortedList =
-                (List<OFFlowStatisticsReply>)(List<?>)statisticList;
-            for(int i = 0; i < sortedList.size(); i++){
-                log.info("durationseconds " + sortedList.get(i).getDurationSeconds());
-            }
+            //List<OFFlowStatisticsReply> sortedList =
+            //    (List<OFFlowStatisticsReply>)(List<?>)statisticList;
+            //for(int i = 0; i < sortedList.size(); i++){
+            //    log.info("durationseconds " + sortedList.get(i).getDurationSeconds());
+            //}
 
-            Collections.sort(sortedList, new FlowModSorter("durationseconds"));
-            log.info("sortedList size " + statisticList.size());
+            //Collections.sort(sortedList, new FlowModSorter("durationseconds"));
+            //log.info("sortedList size " + statisticList.size());
 
-            List<OFMatch> ofmatchList = new ArrayList<OFMatch>(); 
-            for (int i = 0; i < SWAP_SIZE && i < sortedList.size(); i++){
-                log.info("ofmatchList " + i);
-                ofmatchList.add(sortedList.get(i).getMatch());
-            }
+            //List<OFMatch> ofmatchList = new ArrayList<OFMatch>(); 
+            //for (int i = 0; i < SWAP_SIZE && i < sortedList.size(); i++){
+            //    log.info("ofmatchList " + i);
+            //    ofmatchList.add(sortedList.get(i).getMatch());
+            //}
 
-            log.info("ofmatchList size : " + ofmatchList.size());
-            for(int i = 0; i < ofmatchList.size(); i++){
-                log.info(i + " {} " + ofmatchList.get(i).toString());
-            }
+            //log.info("ofmatchList size : " + ofmatchList.size());
+            //for(int i = 0; i < ofmatchList.size(); i++){
+            //    log.info(i + " {} " + ofmatchList.get(i).toString());
+            //}
 
-            swapFlowTables.put(swString, new HashMap<String, OFFlowMod>());
-            log.info("\nTo Be Swaped FlowTables :");
+            //swapFlowTables.put(swString, new HashMap<String, OFFlowMod>());
+            //log.info("\nTo Be Swaped FlowTables :");
             //for (String entry : switchFlows.keySet()){
             //    for (int i = 0; i < ofmatchList.size(); i++){
             //        if ( ofmatchList.get(i).match(switchFlows.get(entry).getMatch()) ){
@@ -767,23 +767,23 @@ public class LoadBalancer implements IFloodlightModule,
             //    }
             //}
 
-            int swap_size = 0;
-            for (String entry : switchFlows.keySet()){
-                if (swap_size >= SWAP_SIZE){
-                    break;
-                }
-                log.info("entry {} ", entry);
-                log.debug("entry {} flowTables: {}",
-                        entry, switchFlows.get(entry).toString());
-                swapFlowTables.get(swString).put(entry, switchFlows.get(entry));
-                sfp.deleteFlow(entry);
-                swap_size += 1;
-            }
+            //int swap_size = 0;
+            //for (String entry : switchFlows.keySet()){
+            //    if (swap_size >= SWAP_SIZE){
+            //        break;
+            //    }
+            //    log.info("entry {} ", entry);
+            //    log.debug("entry {} flowTables: {}",
+            //            entry, switchFlows.get(entry).toString());
+            //    swapFlowTables.get(swString).put(entry, switchFlows.get(entry));
+            //    sfp.deleteFlow(entry);
+            //    swap_size += 1;
+            //}
 
-            log.info("\nHave Swaped FlowTables :");
-            this.traceSwapFlows(sw);
-            log.info("After Swap, Switch Flow Tables : ");
-            this.traceSwitchFlows(sw);
+            //log.info("\nHave Swaped FlowTables :");
+            //this.traceSwapFlows(sw);
+            //log.info("After Swap, Switch Flow Tables : ");
+            //this.traceSwitchFlows(sw);
         }
     }
 
@@ -839,7 +839,8 @@ public class LoadBalancer implements IFloodlightModule,
                 for (int i = 0; i < values.size(); i++){
                     OFFlowStatisticsReply flowTmp =
                         (OFFlowStatisticsReply)values.get(i);
-                    log.info("durationseconds: " + flowTmp.getDurationSeconds());
+                    log.debug("flow tabels: {}",flowTmp.toString());
+                    log.info("flow tabels durationseconds " + flowTmp.getDurationSeconds());
                 }
             } catch (Exception e) {
                 log.error("Failure retrieving statistics from switch " + sw, e);
@@ -1084,7 +1085,7 @@ public class LoadBalancer implements IFloodlightModule,
         messageDamper = new OFMessageDamper(OFMESSAGE_DAMPER_CAPACITY, 
                                             EnumSet.of(OFType.FLOW_MOD),
                                             OFMESSAGE_DAMPER_TIMEOUT);
-        
+
         swapFlowTables = new HashMap<String, Map<String, OFFlowMod>>();
         vips = new HashMap<String, LBVip>();
         pools = new HashMap<String, LBPool>();
