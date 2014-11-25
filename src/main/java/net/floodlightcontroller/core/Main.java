@@ -52,6 +52,7 @@ public class Main {
         
         // Load modules
         FloodlightModuleLoader fml = new FloodlightModuleLoader();
+        System.out.println("module file " + settings.getModuleFile());
         IFloodlightModuleContext moduleContext = fml.loadModulesFromConfig(settings.getModuleFile());
         // Run REST server
         IRestApiService restApi = moduleContext.getServiceImpl(IRestApiService.class);

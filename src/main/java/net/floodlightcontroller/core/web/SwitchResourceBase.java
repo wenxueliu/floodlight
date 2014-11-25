@@ -70,6 +70,11 @@ public class SwitchResourceBase extends ServerResource {
                    		LogMessageDoc.GENERIC_ACTION)
     protected List<OFStatistics> getSwitchStatistics(long switchId,
                                                      OFStatisticsType statType) {
+
+        for (String atrr : getContext().getAttributes().keySet()){
+            log.info("attr {}", atrr);
+        }
+
         IFloodlightProviderService floodlightProvider =
                 (IFloodlightProviderService)getContext().getAttributes().
                     get(IFloodlightProviderService.class.getCanonicalName());
