@@ -73,7 +73,7 @@ public abstract class OFMessageFuture<V> implements Future<V> {
                     future.cancel(true);
             }
         };
-        threadPool.getScheduledExecutor().schedule(timeoutTimer, timeout, unit);
+        this.threadPool.getScheduledExecutor().schedule(timeoutTimer, timeout, unit);
     }
 
     protected void unRegister() {
@@ -86,7 +86,7 @@ public abstract class OFMessageFuture<V> implements Future<V> {
         if (transactionId == msg.getXid()) {
             handleReply(sw, msg);
             if (isFinished()) {
-                unRegister();
+                this.unRegister();
                 this.latch.countDown();
             }
         }
@@ -119,8 +119,8 @@ public abstract class OFMessageFuture<V> implements Future<V> {
         if (isDone()) {
             return false;
         } else {
-            unRegister();
-            canceled = true;
+            this.unRegister();
+            this.canceled = true;
             this.latch.countDown();
             return !isDone();
         }

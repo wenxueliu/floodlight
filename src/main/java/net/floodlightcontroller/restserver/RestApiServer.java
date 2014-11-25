@@ -141,6 +141,17 @@ public class RestApiServer
         restlets.add(routable);
     }
 
+    public void logRestApi(){
+        StringBuffer sb = new StringBuffer();
+        sb.append("REST API routables: ");
+        for (RestletRoutable routable : restlets) {
+            sb.append(routable.getClass().getSimpleName());
+            sb.append(" (");
+            sb.append(routable.basePath());
+            sb.append("), ");
+        }
+        logger.info(sb.toString());
+    }
     @Override
     public void run() {
         if (logger.isDebugEnabled()) {
@@ -155,6 +166,7 @@ public class RestApiServer
             logger.debug(sb.toString());
         }
         
+        logRestApi();
         RestApplication restApp = new RestApplication();
         restApp.run(fmlContext, restHost, restPort);
     }

@@ -1440,6 +1440,7 @@ class OFChannelHandler
         } else if (e.getCause() instanceof IOException) {
             log.error("Disconnecting switch {} due to IO Error: {}",
                       getSwitchInfoString(), e.getCause().getMessage());
+            log.warn("StackTrace for previous Exception: ", e.getCause());
             if (log.isDebugEnabled()) {
                 // still print stack trace if debug is enabled
                 log.debug("StackTrace for previous Exception: ", e.getCause());

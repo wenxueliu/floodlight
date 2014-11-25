@@ -734,7 +734,7 @@ public abstract class OFSwitchBase implements IOFSwitch {
     })
     public void writeThrottled(OFMessage m, FloodlightContext bc)
             throws IOException {
-        if (channel == null || !isConnected())
+        if (this.channel == null || !isConnected())
             return;
         /**
          * By default, channel uses an unbounded send queue. Enable throttling
@@ -744,7 +744,7 @@ public abstract class OFSwitchBase implements IOFSwitch {
          * high water mark (64 kbytes). Once exceeded, isWritable() becomes
          * false after queue length drops below low water mark (32 kbytes).
          */
-        if (!writeThrottleEnabled || channel.isWritable()) {
+        if (!writeThrottleEnabled || this.channel.isWritable()) {
             write(m, bc);
         } else {
             // Let logback duplicate filtering take care of excessive logs
@@ -756,7 +756,7 @@ public abstract class OFSwitchBase implements IOFSwitch {
     @Override
     public void writeThrottled(List<OFMessage> msglist, FloodlightContext bc)
             throws IOException {
-        if (!writeThrottleEnabled || channel.isWritable()) {
+        if (!writeThrottleEnabled || this.channel.isWritable()) {
             write(msglist, bc);
         } else {
             // Let logback duplicate filtering take care of excessive logs
@@ -767,7 +767,7 @@ public abstract class OFSwitchBase implements IOFSwitch {
 
     @Override
     public void write(OFMessage m, FloodlightContext bc) {
-        if (channel == null || !isConnected())
+        if (this.channel == null || !isConnected())
             return;
             //throws IOException {
         Map<IOFSwitch,List<OFMessage>> msg_buffer_map = local_msg_buffer.get();
@@ -795,7 +795,7 @@ public abstract class OFSwitchBase implements IOFSwitch {
                    recommendation=LogMessageDoc.REPORT_CONTROLLER_BUG)
     public void write(List<OFMessage> msglist,
                       FloodlightContext bc) {
-        if (channel == null || !isConnected())
+        if (this.channel == null || !isConnected())
             return;
         for (OFMessage m : msglist) {
             if (role == Role.SLAVE) {
@@ -822,16 +822,17 @@ public abstract class OFSwitchBase implements IOFSwitch {
      * @throws IOException
      */
     protected void write(List<OFMessage> msglist) {
-        if (channel == null || !isConnected())
+        if (this.channel == null || !isConnected())
+            log.info("channel  == null or !isConnected");
             return;
         this.channel.write(msglist);
     }
 
     @Override
     public void disconnectOutputStream() {
-        if (channel == null)
+        if (this.channel == null)
             return;
-        channel.close();
+        this.channel.close();
     }
 
     @Override
@@ -936,7 +937,7 @@ public abstract class OFSwitchBase implements IOFSwitch {
     @Override
     public String toString() {
         String channelString =
-                (channel != null) ? channel.getRemoteAddress().toString() :
+                (this.channel != null) ? this.channel.getRemoteAddress().toString() :
                                     "?";
         return "OFSwitchBase [" + channelString + " DPID[" + ((stringId != null) ? stringId : "?") + "]]";
     }
@@ -981,7 +982,7 @@ public abstract class OFSwitchBase implements IOFSwitch {
 
     @Override
     public void deliverStatisticsReply(OFStatisticsReply reply) {
-        checkForTableStats(reply);
+        this.checkForTableStats(reply);
         OFStatisticsFuture future = this.statsFutureMap.get(reply.getXid());
         if (future != null) {
             future.deliverFuture(this, reply);
@@ -1118,7 +1119,7 @@ public abstract class OFSwitchBase implements IOFSwitch {
                     "this normally happens on switch connection")
     @Override
     public void clearAllFlowMods() {
-        if (channel == null || !isConnected())
+        if (this.channel == null || !isConnected())
             return;
         // Delete all pre-existing flows
         log.info("Clearing all flows on switch {}", this);
@@ -1136,7 +1137,7 @@ public abstract class OFSwitchBase implements IOFSwitch {
         List<OFMessage> msglist = new ArrayList<OFMessage>(2);
         msglist.add(fm);
         msglist.add(barrierMsg);
-        channel.write(msglist);
+        this.channel.write(msglist);
     }
 
     @Override
@@ -1208,9 +1209,9 @@ public abstract class OFSwitchBase implements IOFSwitch {
     @Override
     @JsonSerialize(using=ToStringSerializer.class)
     public SocketAddress getInetAddress() {
-        if (channel == null)
+        if (this.channel == null)
             return null;
-        return channel.getRemoteAddress();
+        return this.channel.getRemoteAddress();
     }
 
     @Override

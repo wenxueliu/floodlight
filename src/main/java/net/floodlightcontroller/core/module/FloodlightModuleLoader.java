@@ -353,6 +353,20 @@ public class FloodlightModuleLoader implements IModuleService {
         initModules(moduleSet);
         startupModules(moduleSet);
         
+
+        for (Class<? extends IFloodlightService> s : floodlightModuleContext.getAllServices()) {
+            logger.info("service:{} imple:{} ",
+                            s.getCanonicalName(), floodlightModuleContext.getServiceImpl(s));
+        }
+
+        for (IFloodlightModule mod : floodlightModuleContext.getAllModules()){
+            logger.info("module:{} ", mod.getCanonicalName());
+            for (String key :
+                    floodlightModuleContext.getConfigParams(mod).keySet()){
+                logger.info("config {}:{}", key,
+                        floodlightModuleContext.getConfigParams(mod).get(key));
+            }
+        }
         return floodlightModuleContext;
     }
     
