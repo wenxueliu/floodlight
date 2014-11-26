@@ -233,7 +233,7 @@ public class FloodlightModuleLoader implements IModuleService {
         }
 
         String confdStr = prop.getProperty(FLOODLIGHT_CONFD);
-        log.info("Floodlight.confd {}",confdStr);
+        logger.info("Floodlight.confd {}",confdStr);
         prop.remove(FLOODLIGHT_CONFD);
         if (confdStr != null) {
             File confd = new File(confdStr);
@@ -369,7 +369,7 @@ public class FloodlightModuleLoader implements IModuleService {
         }
 
         for (IFloodlightModule mod : floodlightModuleContext.getAllModules()){
-            logger.info("module:{} ", mod.getCanonicalName());
+            logger.info("module:{} ", mod.getClass().getCanonicalName());
             for (String key :
                     floodlightModuleContext.getConfigParams(mod).keySet()){
                 logger.info("config {}:{}", key,
@@ -413,7 +413,7 @@ public class FloodlightModuleLoader implements IModuleService {
      */
     protected void initModules(Collection<IFloodlightModule> moduleSet) 
                                            throws FloodlightModuleException {
-        log.info("init Modules");
+        logger.info("init Modules");
         for (IFloodlightModule module : moduleSet) {
             if (initedSet.contains(module.getClass().getCanonicalName()))
                 continue;
@@ -521,7 +521,8 @@ public class FloodlightModuleLoader implements IModuleService {
                             "Not adding configuration option {} = {}", 
                             new Object[]{moduleName, configKey, configValue});
             } else {
-                log.info("add config mod:{} key:{}, value{}",mod, configKey, configValue);
+                logger.info("add config mod:{} key:{}, value{}" 
+                            + mod.getClass().getCanonicalName() + configKey + configValue);
                 floodlightModuleContext.addConfigParam(mod, configKey, configValue);
             }
         }
