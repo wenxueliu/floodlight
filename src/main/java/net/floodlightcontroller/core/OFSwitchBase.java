@@ -822,9 +822,10 @@ public abstract class OFSwitchBase implements IOFSwitch {
      * @throws IOException
      */
     protected void write(List<OFMessage> msglist) {
-        if (this.channel == null || !isConnected())
+        if (this.channel == null || !isConnected()){
             log.info("channel  == null or !isConnected");
             return;
+        }
         this.channel.write(msglist);
     }
 

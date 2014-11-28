@@ -120,7 +120,7 @@ def loaderbanlanceNet(control_ip):
 
 if __name__ == '__main__':
     if len(sys.argv) > 1:
-        loaderbanlanceNet(argv[1])
+        loaderbanlanceNet(sys.argv[1])
     else:
         print "Usage: python %s control_ip" %sys.argv[0]
         sys.exit(1)
