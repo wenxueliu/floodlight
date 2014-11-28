@@ -852,7 +852,7 @@ public abstract class OFSwitchBase implements IOFSwitch {
         this.buffers = featuresReply.getBuffers();
         this.actions = featuresReply.getActions();
         this.tables = featuresReply.getTables();
-}
+    }
 
     @Override
     @JsonIgnore
@@ -971,6 +971,7 @@ public abstract class OFSwitchBase implements IOFSwitch {
 
     @Override
     public Future<List<OFStatistics>> queryStatistics(OFStatisticsRequest request) throws IOException {
+        log.info("queryStatistics");
         request.setXid(getNextTransactionId());
         OFStatisticsFuture future = new OFStatisticsFuture(threadPool, this, request.getXid());
         this.statsFutureMap.put(request.getXid(), future);
@@ -982,14 +983,17 @@ public abstract class OFSwitchBase implements IOFSwitch {
 
     @Override
     public void deliverStatisticsReply(OFStatisticsReply reply) {
+        log.info("deliverStatisticsReply");
         this.checkForTableStats(reply);
         OFStatisticsFuture future = this.statsFutureMap.get(reply.getXid());
         if (future != null) {
+            log.info("OFStatisticsFuture not NULL");
             future.deliverFuture(this, reply);
             // The future will ultimately unregister itself and call
             // cancelStatisticsReply
             return;
         }
+        log.info("OFStatisticsFuture NULL, try IOFMessageListener");
         /* Transaction id was not found in statsFutureMap.check the other map */
         IOFMessageListener caller = this.iofMsgListenersMap.get(reply.getXid());
         if (caller != null) {

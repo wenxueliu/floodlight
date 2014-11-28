@@ -268,10 +268,17 @@ class OFChannelHandler
             if (pendingXid == xid && pendingRole == role) {
                 log.debug("Received role reply message from {}, setting role to {}",
                           getSwitchInfoString(), role);
+                log.info("Received role reply message from {}, setting role to {}",
+                          getSwitchInfoString(), role);
                 counters.roleReplyReceived.updateCounterWithFlush();
                 setSwitchRole(role, RoleRecvStatus.RECEIVED_REPLY);
             } else {
                 log.debug("Received stale or unexpected role reply from " +
+                          "switch {} ({}, xid={}). Ignoring. " +
+                          "Waiting for {}, xid={}",
+                          new Object[] { getSwitchInfoString(), role, xid,
+                                         pendingRole, pendingXid });
+                log.info("Received stale or unexpected role reply from " +
                           "switch {} ({}, xid={}). Ignoring. " +
                           "Waiting for {}, xid={}",
                           new Object[] { getSwitchInfoString(), role, xid,
@@ -384,6 +391,8 @@ class OFChannelHandler
                     log.debug("Switch {} activated. Role is now MASTER",
                               getSwitchInfoString());
                 }
+                log.info("Switch {} activated. Role is now MASTER",
+                            getSwitchInfoString());
                 controller.switchActivated(OFChannelHandler.this.sw);
             } else {
                 OFChannelHandler.this.setState(ChannelState.SLAVE);
@@ -393,6 +402,9 @@ class OFChannelHandler
                               + "({}) request and controller is now SLAVE",
                               getSwitchInfoString(), status);
                     }
+                    log.info("Disconnecting switch {}. Doesn't support role"
+                            + "({}) request and controller is now SLAVE",
+                            getSwitchInfoString(), status);
                     // the disconnect will trigger a switch removed to
                     // controller so no need to signal anything else
                     sw.disconnectOutputStream();
@@ -401,6 +413,8 @@ class OFChannelHandler
                         log.debug("Switch {} is now SLAVE",
                                   getSwitchInfoString());
                     }
+                    log.info("Switch {} is now SLAVE",
+                                getSwitchInfoString());
                     controller.switchDeactivated(OFChannelHandler.this.sw);
                 }
             }
@@ -449,6 +463,7 @@ class OFChannelHandler
             void processOFHello(OFChannelHandler h, OFHello m)
                     throws IOException {
                 h.sendHandShakeMessage(OFType.FEATURES_REQUEST);
+                log.info("STEP: set State WAIT_FEATURES_REPLY");
                 h.setState(WAIT_FEATURES_REPLY);
             }
             @Override
@@ -496,6 +511,7 @@ class OFChannelHandler
                     //h.setState(WAIT_SET_L2_TABLE_REPLY);
                 } else {
                     h.sendHandshakeSetConfig();
+                    log.info("STEP: set State WAIT_CONFIG_REPLY");
                     h.setState(WAIT_CONFIG_REPLY);
                 }
             }
@@ -587,7 +603,9 @@ class OFChannelHandler
                             h.getSwitchInfoString(),
                             m.getMissSendLength());
                 }
+                log.info("STEP: sendHandshakeDescriptionStatsRequest")
                 h.sendHandshakeDescriptionStatsRequest();
+                log.info("STEP: set State WAIT_DESCRIPTION_STAT_REPLY")
                 h.setState(WAIT_DESCRIPTION_STAT_REPLY);
             }
 
@@ -659,6 +677,7 @@ class OFChannelHandler
                 OFStatistics f = m.getFirstStatistics();
                 f.writeTo(data);
                 description.readFrom(data);
+                log.info("Description {}", description.toString());
                 h.sw = h.controller.getOFSwitchInstance(description);
                 // set switch information
                 // set features reply and channel first so we a DPID and
@@ -927,6 +946,7 @@ class OFChannelHandler
                 // If role == null it means the message wasn't really a
                 // Nicira role reply. We ignore it.
                 if (role != null)
+                    log.info("STEP: Role Reply")
                     h.roleChanger.deliverRoleReply(m.getXid(), role);
                 else
                     unhandledMessageReceived(h, m);
@@ -1153,42 +1173,55 @@ class OFChannelHandler
             h.roleChanger.checkTimeout();
             switch(m.getType()) {
                 case HELLO:
+                    log.info("STEP:received Hello");
                     processOFHello(h, (OFHello)m);
                     break;
                 case BARRIER_REPLY:
+                    log.info("STEP:received BARRIER_REPLY");
                     processOFBarrierReply(h, (OFBarrierReply)m);
                     break;
                 case ECHO_REPLY:
+                    log.info("STEP:received ECHO_REPLY");
                     processOFEchoReply(h, (OFEchoReply)m);
                     break;
                 case ECHO_REQUEST:
+                    log.info("STEP:received ECHO_REQUST");
                     processOFEchoRequest(h, (OFEchoRequest)m);
                     break;
                 case ERROR:
+                    log.info("STEP:received ERROR");
                     processOFError(h, (OFError)m);
                     break;
                 case FEATURES_REPLY:
+                    log.info("STEP:received FEATURES_REPLY");
                     processOFFeaturesReply(h, (OFFeaturesReply)m);
                     break;
                 case FLOW_REMOVED:
+                    log.info("STEP:received FLOW_REMOVED");
                     processOFFlowRemoved(h, (OFFlowRemoved)m);
                     break;
                 case GET_CONFIG_REPLY:
+                    log.info("STEP:received GET_CONFIG_REPLY");
                     processOFGetConfigReply(h, (OFGetConfigReply)m);
                     break;
                 case PACKET_IN:
+                    log.info("STEP:received PACKET_IN");
                     processOFPacketIn(h, (OFPacketIn)m);
                     break;
                 case PORT_STATUS:
+                    log.info("STEP:received PORT_STATUS");
                     processOFPortStatus(h, (OFPortStatus)m);
                     break;
                 case QUEUE_GET_CONFIG_REPLY:
+                    log.info("STEP:received QUEUE_GET_CONFIG_REPLY");
                     processOFQueueGetConfigReply(h, (OFQueueGetConfigReply)m);
                     break;
                 case STATS_REPLY:
+                    log.info("STEP:received STATS_REPLY");
                     processOFStatisticsReply(h, (OFStatisticsReply)m);
                     break;
                 case VENDOR:
+                    log.info("STEP:received VENDOR");
                     processOFVendor(h, (OFVendor)m);
                     break;
                 // The following messages are sent to switches. The controller
@@ -1202,6 +1235,7 @@ class OFChannelHandler
                 case STATS_REQUEST:
                 case FEATURES_REQUEST:
                 case FLOW_MOD:
+                    log.info("STEP:received NOT EXPECT");
                     illegalMessageReceived(h, m);
                     break;
             }
@@ -1355,11 +1389,13 @@ class OFChannelHandler
                             "specified IP address")
     public void channelConnected(ChannelHandlerContext ctx,
                                  ChannelStateEvent e) throws Exception {
+        log.info("STEP:channelConnected");
         counters.switchConnected.updateCounterWithFlush();
         channel = e.getChannel();
         log.info("New switch connection from {}",
                  channel.getRemoteAddress());
         sendHandShakeMessage(OFType.HELLO);
+        log.info("STEP:set state WAIT_HELLO");
         setState(ChannelState.WAIT_HELLO);
     }
 
@@ -1489,6 +1525,7 @@ class OFChannelHandler
     @Override
     public void messageReceived(ChannelHandlerContext ctx, MessageEvent e)
             throws Exception {
+        log.info("STEP:message Received");
         if (e.getMessage() instanceof List) {
             @SuppressWarnings("unchecked")
             List<OFMessage> msglist = (List<OFMessage>)e.getMessage();
@@ -1670,6 +1707,8 @@ class OFChannelHandler
      */
     private void sendHandShakeMessage(OFType type) throws IOException {
         // Send initial Features Request
+        log.info("STEP: sendHandShackeMessage {}",
+                type.toClass().getClass().getConanicalName());
         OFMessage m = BasicFactory.getInstance().getMessage(type);
         m.setXid(handshakeTransactionIds--);
         channel.write(Collections.singletonList(m));
@@ -1698,6 +1737,7 @@ class OFChannelHandler
         // because addSwitchChannel will eventually call setRole
         // which can in turn decide that the switch doesn't support
         // roles and transition the state straight to MASTER.
+        log.info("STEP: set State WAIT_INITIAL_ROLE");
         setState(ChannelState.WAIT_INITIAL_ROLE);
         controller.addSwitchChannelAndSendInitialRole(this);
     }
@@ -1708,6 +1748,7 @@ class OFChannelHandler
      * @throws IOException
      */
     private void sendHandshakeSetConfig() throws IOException {
+        log.info("STEP: sendHandshakeConfig");
         List<OFMessage> msglist = new ArrayList<OFMessage>(3);
 
         // Ensure we receive the full packet via PacketIn
