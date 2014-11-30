@@ -114,7 +114,7 @@ public class FloodlightModuleLoader implements IModuleService {
                 if (logger.isDebugEnabled()) {
                     logger.debug("Found module " + m.getClass().getName());
                 }
-                logger.info("Found module " + m.getClass().getName());
+                //logger.info("Found module " + m.getClass().getName());
 
                 // Set up moduleNameMap
                 moduleNameMap.put(m.getClass().getCanonicalName(), m);
@@ -199,11 +199,11 @@ public class FloodlightModuleLoader implements IModuleService {
             configMods = loadProperties(is, null, prop);
         }
 
-        logger.info("load mudles:");
-        Iterator<String> it = configMods.iterator();
-        while(it.hasNext()){
-            logger.info("\t {}", it.next());
-        }
+        //logger.info("load mudles:");
+        //Iterator<String> it = configMods.iterator();
+        //while(it.hasNext()){
+        //    logger.info("\t {}", it.next());
+        //}
 
         return loadModulesFromList(configMods, prop);
     }
@@ -431,9 +431,9 @@ public class FloodlightModuleLoader implements IModuleService {
                                      "  as provider for " + 
                                      s.getKey().getCanonicalName());
                     }
-                    logger.info("Setting " + s.getValue() + 
-                                 "  as provider for " + 
-                                 s.getKey().getCanonicalName());
+                    //logger.info("Setting " + s.getValue() + 
+                    //             "  as provider for " + 
+                    //             s.getKey().getCanonicalName());
                     if (floodlightModuleContext.getServiceImpl(s.getKey()) == null) {
                         floodlightModuleContext.addService(s.getKey(),
                                                            s.getValue());
@@ -521,8 +521,8 @@ public class FloodlightModuleLoader implements IModuleService {
                             "Not adding configuration option {} = {}", 
                             new Object[]{moduleName, configKey, configValue});
             } else {
-                logger.info("add config mod:{} key:{}, value{}" 
-                            + mod.getClass().getCanonicalName() + configKey + configValue);
+                //logger.info("add config mod:{} key:{}, value{}" 
+                //            + mod.getClass().getCanonicalName() + configKey + configValue);
                 floodlightModuleContext.addConfigParam(mod, configKey, configValue);
             }
         }

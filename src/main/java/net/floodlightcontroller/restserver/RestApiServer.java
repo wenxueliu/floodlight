@@ -109,7 +109,7 @@ public class RestApiServer
                     logger.trace("Adding {} for service {} into context",
                                  s.getCanonicalName(), fmlContext.getServiceImpl(s));
                 }
-                logger.info("Adding {} for service {} into context",
+                logger.debug("Adding {} for service {} into context",
                                 s.getCanonicalName(), fmlContext.getServiceImpl(s));
                 context.getAttributes().put(s.getCanonicalName(), 
                                             fmlContext.getServiceImpl(s));

@@ -1443,6 +1443,7 @@ public class Controller implements IFloodlightProviderService,
     private class ReadyForReconcileUpdate implements IUpdate {
         @Override
         public void dispatch() {
+            log.info("ReadyForReconcileUpdate dispatch");
             counters.readyForReconcile.updateCounterWithFlush();
             if (readyForReconcileListeners != null) {
                 for (IReadyForReconcileListener listener:
@@ -1505,6 +1506,8 @@ public class Controller implements IFloodlightProviderService,
                 log.trace("Dispatching switch update {} {}",
                         HexString.toHexString(swId), switchUpdateType);
             }
+            log.info("Dispatching switch update {} {}",
+                    HexString.toHexString(swId), switchUpdateType);
             if (switchListeners != null) {
                 for (IOFSwitchListener listener : switchListeners) {
                     switch(switchUpdateType) {
@@ -1560,6 +1563,8 @@ public class Controller implements IFloodlightProviderService,
                 log.debug("Dispatching HA Role update newRole = {}",
                           newRole);
             }
+            log.info("Dispatching HA Role update newRole = {}",
+                        newRole);
             for (IHAListener listener : haListeners.getOrderedListeners()) {
                 if (log.isTraceEnabled()) {
                     log.trace("Calling HAListener {} with transitionToMaster",
@@ -1598,6 +1603,11 @@ public class Controller implements IFloodlightProviderService,
                             removedControllerNodeIPs }
                         );
             }
+            log.info("Dispatching HA Controller Node IP update "
+                    + "curIPs = {}, addedIPs = {}, removedIPs = {}",
+                    new Object[] { curControllerNodeIPs, addedControllerNodeIPs,
+                        removedControllerNodeIPs }
+                    );
             if (haListeners != null) {
                 for (IHAListener listener: haListeners.getOrderedListeners()) {
                     listener.controllerNodeIPsChanged(curControllerNodeIPs,
@@ -1768,9 +1778,11 @@ public class Controller implements IFloodlightProviderService,
     protected void handleMessage(IOFSwitch sw, OFMessage m,
                                  FloodlightContext bContext)
             throws IOException {
+        log.info("Controller handleMessage sw:{} msg:{} ", sw.getStringId(), m.toString());
         Ethernet eth = null;
 
         if (this.notifiedRole == Role.SLAVE) {
+            log.warn("We are SLAVE. Do not dispatch messages to listeners.");
             counters.dispatchMessageWhileSlave.updateCounterNoFlush();
             // We are SLAVE. Do not dispatch messages to listeners.
             return;
@@ -1779,6 +1791,7 @@ public class Controller implements IFloodlightProviderService,
 
         switch (m.getType()) {
             case PACKET_IN:
+                log.info("controller handler packetin message part");
                 OFPacketIn pi = (OFPacketIn)m;
 
                 if (pi.getPacketData().length <= 0) {
@@ -1797,6 +1810,7 @@ public class Controller implements IFloodlightProviderService,
 
             default:
 
+                log.info("controller handler not packetin message message");
                 List<IOFMessageListener> listeners = null;
                 if (messageListeners.containsKey(m.getType())) {
                     listeners = messageListeners.get(m.getType()).
@@ -1826,7 +1840,9 @@ public class Controller implements IFloodlightProviderService,
                     Command cmd;
                     for (IOFMessageListener listener : listeners) {
                         pktinProcTime.recordStartTimeComp(listener);
+                        log.info("listener:{} begin receive", listener.getName());
                         cmd = listener.receive(sw, m, bc);
+                        log.info("listener:{} end receive", listener.getName());
                         pktinProcTime.recordEndTimeComp(listener);
 
                         if (Command.STOP.equals(cmd)) {
@@ -2011,6 +2027,7 @@ public class Controller implements IFloodlightProviderService,
     })
     public boolean injectOfMessage(IOFSwitch sw, OFMessage msg,
                                    FloodlightContext bc) {
+        log.info("injectOfMessage {} {}", sw.getStringId(), msg.toString());
         if (sw == null)
             throw new NullPointerException("Switch must not be null");
         if (msg == null)
@@ -2200,6 +2217,7 @@ public class Controller implements IFloodlightProviderService,
             throw new RuntimeException(e);
         }
 
+        log.info("updates loop dequeu begin");
         // main loop
         while (true) {
             try {

@@ -972,19 +972,44 @@ public abstract class OFSwitchBase implements IOFSwitch {
 
     @Override
     public Future<List<OFStatistics>> queryStatistics(OFStatisticsRequest request) throws IOException {
-        log.info("queryStatistics");
         request.setXid(getNextTransactionId());
+        log.info("queryStatistics Xid : {}", String.valueOf(request.getXid()));
         OFStatisticsFuture future = new OFStatisticsFuture(threadPool, this, request.getXid());
         this.statsFutureMap.put(request.getXid(), future);
         List<OFMessage> msglist = new ArrayList<OFMessage>(1);
         msglist.add(request);
+        log.info("channel send req");
+        log.info("future is canceled:{}", String.valueOf(future.isCancelled()));
+        log.info("future is Done:{}", String.valueOf(future.isDone()));
+        log.info("this.channel ID:{} and isOpend:{} and isWritable:{}",
+                new Object[] {String.valueOf(this.channel.getId()),
+                String.valueOf(this.channel.isOpen()),
+                String.valueOf(this.channel.isWritable())});
         this.write(msglist);
+        log.info("channel get response");
+        log.info("future is canceled:{}", String.valueOf(future.isCancelled()));
+        log.info("future is Done:{}", String.valueOf(future.isDone()));
         return future;
     }
 
     @Override
     public void deliverStatisticsReply(OFStatisticsReply reply) {
-        log.info("deliverStatisticsReply");
+        log.info("deliverStatisticsReply Xid {}", String.valueOf(reply.getXid()));
+        if (reply.getStatisticType() == OFStatisticsType.FLOW){
+            log.info("get Flow Statistic Replay Size: {}", String.valueOf(reply.getStatistics().size()));
+        } else if (reply.getStatisticType() == OFStatisticsType.DESC){
+            log.info("get DESC Statistic Replay Size: {}", String.valueOf(reply.getStatistics().size()));
+        } else if (reply.getStatisticType() == OFStatisticsType.TABLE){
+            log.info("get TABLE Statistic Replay Size: {}", String.valueOf(reply.getStatistics().size()));
+        } else if (reply.getStatisticType() == OFStatisticsType.PORT) {
+            log.info("get PORT Statistic Replay Size: {}", String.valueOf(reply.getStatistics().size()));
+        } else if (reply.getStatisticType() == OFStatisticsType.AGGREGATE) {
+            log.info("get AGGREGATE Statistic Replay Size: {}", String.valueOf(reply.getStatistics().size()));
+        } else if (reply.getStatisticType() == OFStatisticsType.QUEUE) {
+            log.info("get QUEUE Statistic Replay Size: {}", String.valueOf(reply.getStatistics().size()));
+        } else if (reply.getStatisticType() == OFStatisticsType.VENDOR) {
+            log.info("get VENDOR Statistic Replay Size: {}", String.valueOf(reply.getStatistics().size()));
+        }
         this.checkForTableStats(reply);
         OFStatisticsFuture future = this.statsFutureMap.get(reply.getXid());
         if (future != null) {

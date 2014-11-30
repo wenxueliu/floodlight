@@ -25,6 +25,8 @@ import java.util.concurrent.TimeoutException;
 
 import org.openflow.protocol.OFMessage;
 import org.openflow.protocol.OFType;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import net.floodlightcontroller.core.IOFSwitch;
 import net.floodlightcontroller.threadpool.IThreadPoolService;
@@ -39,6 +41,7 @@ import net.floodlightcontroller.threadpool.IThreadPoolService;
  */
 public abstract class OFMessageFuture<V> implements Future<V> {
 
+    protected static Logger log = LoggerFactory.getLogger(OFMessageFuture.class);
     protected IThreadPoolService threadPool;
     protected volatile boolean canceled;
     protected CountDownLatch latch;
@@ -83,6 +86,8 @@ public abstract class OFMessageFuture<V> implements Future<V> {
 
     // TODO: msg should be generic!
     public void deliverFuture(IOFSwitch sw, OFMessage msg) {
+        log.info("deliverFuture");
+        log.info("transactionId:{} msg Xid:{}", String.valueOf(transactionId), msg.getXid());
         if (transactionId == msg.getXid()) {
             handleReply(sw, msg);
             if (isFinished()) {
@@ -109,7 +114,7 @@ public abstract class OFMessageFuture<V> implements Future<V> {
      * threads.
      * @return when this Future has completed its work
      */
-    protected abstract boolean isFinished();
+    public abstract boolean isFinished();
 
     /* (non-Javadoc)
      * @see java.util.concurrent.Future#cancel(boolean)

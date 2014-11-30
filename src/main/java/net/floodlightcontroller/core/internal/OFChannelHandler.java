@@ -603,9 +603,9 @@ class OFChannelHandler
                             h.getSwitchInfoString(),
                             m.getMissSendLength());
                 }
-                log.info("STEP: sendHandshakeDescriptionStatsRequest")
+                log.info("STEP: sendHandshakeDescriptionStatsRequest");
                 h.sendHandshakeDescriptionStatsRequest();
-                log.info("STEP: set State WAIT_DESCRIPTION_STAT_REPLY")
+                log.info("STEP: set State WAIT_DESCRIPTION_STAT_REPLY");
                 h.setState(WAIT_DESCRIPTION_STAT_REPLY);
             }
 
@@ -866,6 +866,7 @@ class OFChannelHandler
             @Override
             void processOFStatisticsReply(OFChannelHandler h,
                                           OFStatisticsReply m) {
+                log.info("MASTER process Statistic Replay");
                 h.sw.deliverStatisticsReply(m);
             }
 
@@ -897,6 +898,7 @@ class OFChannelHandler
 
             @Override
             void processOFPacketIn(OFChannelHandler h, OFPacketIn m) throws IOException {
+                log.info("state MASTER process Packetin");
                 h.dispatchMessage(m);
             }
 
@@ -945,11 +947,12 @@ class OFChannelHandler
                 Role role = extractNiciraRoleReply(h, m);
                 // If role == null it means the message wasn't really a
                 // Nicira role reply. We ignore it.
-                if (role != null)
-                    log.info("STEP: Role Reply")
+                if (role != null){
+                    log.info("STEP: Role Reply");
                     h.roleChanger.deliverRoleReply(m.getXid(), role);
-                else
+                } else {
                     unhandledMessageReceived(h, m);
+                }
             }
 
             @Override
@@ -1392,6 +1395,7 @@ class OFChannelHandler
         log.info("STEP:channelConnected");
         counters.switchConnected.updateCounterWithFlush();
         channel = e.getChannel();
+        log.info("channel ID:{}", channel.getId());
         log.info("New switch connection from {}",
                  channel.getRemoteAddress());
         sendHandShakeMessage(OFType.HELLO);
@@ -1666,6 +1670,7 @@ class OFChannelHandler
 
     private void dispatchMessage(OFMessage m) throws IOException {
         // handleMessage will count
+        log.info("channel dispatchMessage");
         this.controller.handleMessage(this.sw, m, null);
     }
 
@@ -1708,7 +1713,7 @@ class OFChannelHandler
     private void sendHandShakeMessage(OFType type) throws IOException {
         // Send initial Features Request
         log.info("STEP: sendHandShackeMessage {}",
-                type.toClass().getClass().getConanicalName());
+                type.toClass().toString());
         OFMessage m = BasicFactory.getInstance().getMessage(type);
         m.setXid(handshakeTransactionIds--);
         channel.write(Collections.singletonList(m));

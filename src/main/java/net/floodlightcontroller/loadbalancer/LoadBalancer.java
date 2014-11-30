@@ -666,7 +666,7 @@ public class LoadBalancer implements IFloodlightModule,
                    this.traceSwapFlows(sw);
                }
                sfp.addFlow(entryName, fm, swString);
-               //this.traceSwitchFlows(sw);
+               this.traceSwitchFlows(sw);
                this.swapFlowTable(sw);
            }
         }
@@ -729,10 +729,12 @@ public class LoadBalancer implements IFloodlightModule,
         if ( switchFlowSize >= MAX_FLOW_TABLES ) {
             //List<String> sortedList = new ArrayList<String>(switchFlows.keySet());
             log.info("arg of getSwitchStatistics  pin switch " + sw.getId());
-            List<OFStatistics> statisticList = 
-                new ArrayList<OFStatistics>(getSwitchStatistics(sw.getId(), OFStatisticsType.FLOW));
-
-            log.info("statisticList size " + statisticList.size());
+            if (getSwitchStatistics(sw.getId(), OFStatisticsType.FLOW) != null){
+                List<OFStatistics> statisticList = 
+                    new ArrayList<OFStatistics>(getSwitchStatistics(sw.getId(), OFStatisticsType.FLOW));
+                log.info("statisticList size " + statisticList.size());
+            }
+            log.info("statisticList get null");
             //List<OFFlowStatisticsReply> sortedList =
             //    (List<OFFlowStatisticsReply>)(List<?>)statisticList;
             //for(int i = 0; i < sortedList.size(); i++){
@@ -834,8 +836,14 @@ public class LoadBalancer implements IFloodlightModule,
                 future = sw.queryStatistics(req);
                 log.info("sw {} wait for 10 seconds for statistics",sw.getStringId());
                 values = future.get(10, TimeUnit.SECONDS);
+                int count = 0;
+                while (!future.isDone()){
+                    values = future.get(10, TimeUnit.SECONDS);
+                    count += 1;
+                    if (count == 5)
+                        break;
+                }
                 log.info("value size : " + values.size());
-                log.info("value size : " + future.get(10, TimeUnit.SECONDS).size());
                 for (int i = 0; i < values.size(); i++){
                     OFFlowStatisticsReply flowTmp =
                         (OFFlowStatisticsReply)values.get(i);
