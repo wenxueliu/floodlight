@@ -111,7 +111,7 @@ public class Device implements IDevice {
                 this.attachmentPoints.add(ap);
             }
         }
-        vlanIds = computeVlandIds();
+        this.vlanIds = computeVlandIds();
     }
 
     /**
@@ -202,16 +202,16 @@ public class Device implements IDevice {
     }
 
     private VlanVid[] computeVlandIds() {
-        if (entities.length == 1) {
-            if (entities[0].getVlan() != null) {
-                return new VlanVid[]{ entities[0].getVlan() };
+        if (this.entities.length == 1) {
+            if (this.entities[0].getVlan() != null) {
+                return new VlanVid[]{ this.entities[0].getVlan() };
             } else {
                 return new VlanVid[] { VlanVid.ofVlan(-1) };
             }
         }
 
         TreeSet<VlanVid> vals = new TreeSet<VlanVid>();
-        for (Entity e : entities) {
+        for (Entity e : this.entities) {
             if (e.getVlan() == null)
                 vals.add(VlanVid.ofVlan(-1));
             else
@@ -229,9 +229,10 @@ public class Device implements IDevice {
     private Map<DatapathId, AttachmentPoint> getAPMap(List<AttachmentPoint> apList) {
 
         if (apList == null) return null;
-        ITopologyService topology = deviceManager.topology;
+        ITopologyService topology = this.deviceManager.topology;
 
         // Get the old attachment points and sort them.
+        // TODO oldAP is needed?
         List<AttachmentPoint>oldAP = new ArrayList<AttachmentPoint>();
         if (apList != null) oldAP.addAll(apList);
 
@@ -239,7 +240,7 @@ public class Device implements IDevice {
         List<AttachmentPoint>tempAP =
                 new ArrayList<AttachmentPoint>();
         for(AttachmentPoint ap: oldAP) {
-            if (deviceManager.isValidAttachmentPoint(ap.getSw(), ap.getPort())) {
+            if (this.deviceManager.isValidAttachmentPoint(ap.getSw(), ap.getPort())) {
                 tempAP.add(ap);
             }
         }
@@ -248,12 +249,14 @@ public class Device implements IDevice {
         Collections.sort(oldAP, deviceManager.apComparator);
 
         // Map of attachment point by L2 domain Id.
-        Map<DatapathId, AttachmentPoint> apMap = new HashMap<DatapathId, AttachmentPoint>();
+        // in order to good performance,  prealloc size for HashMap 
+        Map<DatapathId, AttachmentPoint> apMap = new HashMap<DatapathId, AttachmentPoint>(oldAP.size());
 
         for(int i=0; i<oldAP.size(); ++i) {
             AttachmentPoint ap = oldAP.get(i);
             // if this is not a valid attachment point, continue
-            if (!deviceManager.isValidAttachmentPoint(ap.getSw(), ap.getPort()))
+            // TODO the check has been done before, so it isn't needed
+            if (!this.deviceManager.isValidAttachmentPoint(ap.getSw(), ap.getPort()))
                 continue;
 
             DatapathId id = topology.getL2DomainId(ap.getSw());
@@ -333,13 +336,14 @@ public class Device implements IDevice {
      */
     protected boolean updateAttachmentPoint() {
         boolean moved = false;
-        this.oldAPs = attachmentPoints;
+        this.oldAPs = this.attachmentPoints;
         if (attachmentPoints == null || attachmentPoints.isEmpty())
             return false;
 
+        //TODO newMap = this.addAll(this.attachmentPoints) directly
         List<AttachmentPoint> apList = new ArrayList<AttachmentPoint>();
         if (attachmentPoints != null) apList.addAll(attachmentPoints);
-        Map<DatapathId, AttachmentPoint> newMap = getAPMap(apList);
+        Map<DatapathId, AttachmentPoint> newMap = this.getAPMap(apList);
         if (newMap == null || newMap.size() != apList.size()) {
             moved = true;
         }
@@ -376,12 +380,14 @@ public class Device implements IDevice {
         AttachmentPoint newAP = new AttachmentPoint(sw, port, lastSeen);
         //Copy the oldAP and ap list.
         apList = new ArrayList<AttachmentPoint>();
-        if (attachmentPoints != null) apList.addAll(attachmentPoints);
+        if (this.attachmentPoints != null) apList.addAll(this.attachmentPoints);
         oldAPList = new ArrayList<AttachmentPoint>();
-        if (oldAPs != null) oldAPList.addAll(oldAPs);
+        if (this.oldAPs != null) oldAPList.addAll(this.oldAPs);
 
         // if the sw, port is in old AP, remove it from there
         // and update the lastSeen in that object.
+        // TODO the contains will traverse the ArrayList, so if oldAPList is
+        // numerous, it's the bottleneck of performance
         if (oldAPList.contains(newAP)) {
             int index = oldAPList.indexOf(newAP);
             newAP = oldAPList.remove(index);
@@ -395,8 +401,10 @@ public class Device implements IDevice {
         // Get the APMap is null or empty.
         Map<DatapathId, AttachmentPoint> apMap = getAPMap(apList);
         if (apMap == null || apMap.isEmpty()) {
+            //TODO apMap has Empty, all elements of apList are invaild, here is
+            //it right ?
             apList.add(newAP);
-            attachmentPoints = apList;
+            this.attachmentPoints = apList;
             // there are no old attachment points - since the device exists, this
             // may be because the host really moved (so the old AP port went down);
             // or it may be because the switch restarted (so old APs were nullified).
@@ -435,7 +443,7 @@ public class Device implements IDevice {
                     new ArrayList<AttachmentPoint>(apMap.values());
 
             oldAPList = new ArrayList<AttachmentPoint>();
-            if (oldAPs != null) oldAPList.addAll(oldAPs);
+            if (this.oldAPs != null) oldAPList.addAll(this.oldAPs);
             oldAPList.add(oldAP);
             this.oldAPs = oldAPList;
             if (!topology.isInSameBroadcastDomain(oldAP.getSw(), oldAP.getPort(),
@@ -444,8 +452,9 @@ public class Device implements IDevice {
         } else  if (oldAPFlag) {
             // retain oldAP  as is.  Put the newAP in oldAPs for flagging
             // possible duplicates.
+            // TODO if oldAPFlag is true, see 391-396, follow isn't needed
                 oldAPList = new ArrayList<AttachmentPoint>();
-                if (oldAPs != null) oldAPList.addAll(oldAPs);
+                if (this.oldAPs != null) oldAPList.addAll(this.oldAPs);
                 // Add ot oldAPList only if it was picked up from the oldAPList
                 oldAPList.add(newAP);
                 this.oldAPs = oldAPList;
@@ -541,11 +550,13 @@ public class Device implements IDevice {
     public SwitchPort[] getOldAP() {
         List<SwitchPort> sp = new ArrayList<SwitchPort>();
         SwitchPort [] returnSwitchPorts = new SwitchPort[] {};
-        if (oldAPs == null) return returnSwitchPorts;
-        if (oldAPs.isEmpty()) return returnSwitchPorts;
+        if (oldAPs == null || oldAPs.isEmpty()) return returnSwitchPorts;
+        //if (oldAPs.isEmpty()) return returnSwitchPorts;
 
         // copy ap list.
         List<AttachmentPoint> oldAPList;
+
+        //TODO  oldAPList = new ArrayList<AttachmentPoint>( oldAPs != NULL ? oldAPs : 0 )
         oldAPList = new ArrayList<AttachmentPoint>();
 
         if (oldAPs != null) oldAPList.addAll(oldAPs);
@@ -570,8 +581,8 @@ public class Device implements IDevice {
     public SwitchPort[] getAttachmentPoints(boolean includeError) {
         List<SwitchPort> sp = new ArrayList<SwitchPort>();
         SwitchPort [] returnSwitchPorts = new SwitchPort[] {};
-        if (attachmentPoints == null) return returnSwitchPorts;
-        if (attachmentPoints.isEmpty()) return returnSwitchPorts;
+        if (attachmentPoints == null || attachmentPoints.isEmpty()) return returnSwitchPorts;
+        //if (attachmentPoints.isEmpty()) return returnSwitchPorts;
 
         // copy ap list.
         List<AttachmentPoint> apList = attachmentPoints;
@@ -587,6 +598,7 @@ public class Device implements IDevice {
         if (!includeError)
             return sp.toArray(new SwitchPort[sp.size()]);
 
+        //TODO  oldAPList = new ArrayList<AttachmentPoint>( oldAPs != NULL ? oldAPs : 0 )
         List<AttachmentPoint> oldAPList;
         oldAPList = new ArrayList<AttachmentPoint>();
 
@@ -618,7 +630,7 @@ public class Device implements IDevice {
     @Override
     public MacAddress getMACAddress() {
         // we assume only one MAC per device for now.
-        return entities[0].getMacAddress();
+        return this.entities[0].getMacAddress();
     }
 
     @Override
@@ -639,14 +651,14 @@ public class Device implements IDevice {
         // is really a performance bottleneck first though.
 
         TreeSet<IPv4Address> vals = new TreeSet<IPv4Address>();
-        for (Entity e : entities) {
+        for (Entity e : this.entities) {
             if (e.getIpv4Address() == null) continue;
 
             // We have an IP address only if among the devices within the class
             // we have the most recent entity with that IP.
             boolean validIP = true;
             Iterator<Device> devices =
-                    deviceManager.queryClassByEntity(entityClass, ipv4Fields, e);
+                    deviceManager.queryClassByEntity(this.entityClass, ipv4Fields, e);
             while (devices.hasNext()) {
                 Device d = devices.next();
                 if (deviceKey.equals(d.getDeviceKey()))
@@ -675,7 +687,7 @@ public class Device implements IDevice {
     @Override
     public VlanVid[] getSwitchPortVlanIds(SwitchPort swp) {
         TreeSet<VlanVid> vals = new TreeSet<VlanVid>();
-        for (Entity e : entities) {
+        for (Entity e : this.entities) {
             if (e.switchDPID == swp.getSwitchDPID()
                     && e.switchPort == swp.getPort()) {
                 if (e.getVlan() == null)
@@ -690,7 +702,7 @@ public class Device implements IDevice {
     @Override
     public Date getLastSeen() {
         Date d = null;
-        for (int i = 0; i < entities.length; i++) {
+        for (int i = 0; i < this.entities.length; i++) {
             if (d == null ||
                     entities[i].getLastSeenTimestamp().compareTo(d) > 0)
                 d = entities[i].getLastSeenTimestamp();
