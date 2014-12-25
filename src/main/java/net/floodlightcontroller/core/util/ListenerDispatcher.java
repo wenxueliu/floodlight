@@ -70,8 +70,8 @@ public class ListenerDispatcher<U, T extends IListener<U>> {
                            "the controller installation.")
     public void addListener(U type, T listener) {
         List<T> newlisteners = new ArrayList<T>();
-        if (listeners != null)
-            newlisteners.addAll(listeners);
+        if (this.listeners != null)
+            newlisteners.addAll(this.listeners);
 
         newlisteners.add(listener);
         // Find nodes without outgoing edges
@@ -92,7 +92,7 @@ public class ListenerDispatcher<U, T extends IListener<U>> {
         if (terminals.size() == 0) {
             logger.error("No listener dependency solution: " +
                          "No listeners without incoming dependencies");
-            listeners = newlisteners;
+            this.listeners = newlisteners;
             return;
         }
 
@@ -103,7 +103,7 @@ public class ListenerDispatcher<U, T extends IListener<U>> {
         for (T term : terminals) {
             visit(newlisteners, type, visited, ordering, term);
         }
-        listeners = ordering;
+        this.listeners = ordering;
     }
 
     /**
@@ -111,9 +111,10 @@ public class ListenerDispatcher<U, T extends IListener<U>> {
      * @param listener the listener to remove
      */
     public void removeListener(T listener) {
-        if (listeners != null) {
+        if (this.listeners != null) {
+            //TODO why not this.listeners.remove(listener)
             List<T> newlisteners = new ArrayList<T>();
-            newlisteners.addAll(listeners);
+            newlisteners.addAll(this.listeners);
             newlisteners.remove(listener);
             listeners = newlisteners;
         }
@@ -123,7 +124,8 @@ public class ListenerDispatcher<U, T extends IListener<U>> {
      * Clear all listeners
      */
     public void clearListeners() {
-        listeners = new ArrayList<T>();
+        //TODO why not this.listeners.clear()
+        this.listeners = new ArrayList<T>();
     }
 
     /**
@@ -131,6 +133,6 @@ public class ListenerDispatcher<U, T extends IListener<U>> {
      * @return
      */
     public List<T> getOrderedListeners() {
-        return listeners;
+        return this.listeners;
     }
 }

@@ -98,17 +98,18 @@ public abstract class DeviceIndex {
      */
     public void removeEntityIfNeeded(Entity entity, Long deviceKey,
                                      Collection<Entity> others) {
-        IndexedEntity ie = new IndexedEntity(keyFields, entity);
+        IndexedEntity ie = new IndexedEntity(this.keyFields, entity);
         for (Entity o : others) {
-            IndexedEntity oio = new IndexedEntity(keyFields, o);
+            IndexedEntity oio = new IndexedEntity(this.keyFields, o);
             if (oio.equals(ie)) return;
         }
 
+        //TODO  this.index.get(entity).remove(deviceKey)
         Iterator<Long> keyiter = this.queryByEntity(entity);
         while (keyiter.hasNext()) {
                 Long key = keyiter.next();
                 if (key.equals(deviceKey)) {
-                    removeEntity(entity, deviceKey);
+                    this.removeEntity(entity, deviceKey);
                     break;
                 }
         }

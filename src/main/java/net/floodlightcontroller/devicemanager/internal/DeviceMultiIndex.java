@@ -51,8 +51,8 @@ public class DeviceMultiIndex extends DeviceIndex {
 
     @Override
     public Iterator<Long> queryByEntity(Entity entity) {
-        IndexedEntity ie = new IndexedEntity(keyFields, entity);
-        Collection<Long> devices = index.get(ie);
+        IndexedEntity ie = new IndexedEntity(this.keyFields, entity);
+        Collection<Long> devices = this.index.get(ie);
         if (devices != null)
             return devices.iterator();
         
@@ -77,14 +77,15 @@ public class DeviceMultiIndex extends DeviceIndex {
     public boolean updateIndex(Entity entity, Long deviceKey) {
         Collection<Long> devices = null;
 
-        IndexedEntity ie = new IndexedEntity(keyFields, entity);
+        IndexedEntity ie = new IndexedEntity(this.keyFields, entity);
         if (!ie.hasNonNullKeys()) return false;
 
-        devices = index.get(ie);
+        devices = this.index.get(ie);
         if (devices == null) {
+            //TODO Why ?
             Map<Long,Boolean> chm = new ConcurrentHashMap<Long,Boolean>();
             devices = Collections.newSetFromMap(chm);
-            Collection<Long> r = index.putIfAbsent(ie, devices);
+            Collection<Long> r = this.index.putIfAbsent(ie, devices);
             if (r != null)
                 devices = r;
         }

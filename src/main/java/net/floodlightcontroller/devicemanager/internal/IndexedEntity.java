@@ -55,21 +55,21 @@ public class IndexedEntity {
      * @return true if any key fields have a non-null value
      */
     public boolean hasNonNullKeys() {
-        for (DeviceField f : keyFields) {
+        for (DeviceField f : this.keyFields) {
             switch (f) {
                 case MAC:
                     return true;
                 case IPV4:
-                    if (entity.ipv4Address != null) return true;
+                    if (this.entity.ipv4Address != null) return true;
                     break;
                 case SWITCH:
-                    if (entity.switchDPID != null) return true;
+                    if (this.entity.switchDPID != null) return true;
                     break;
                 case PORT:
-                    if (entity.switchPort != null) return true;
+                    if (this.entity.switchPort != null) return true;
                     break;
                 case VLAN:
-                    if (entity.vlan != null) return true;
+                    if (this.entity.vlan != null) return true;
                     break;
             }
         }
@@ -134,28 +134,28 @@ public class IndexedEntity {
         for (IDeviceService.DeviceField f : keyFields) {
             switch (f) {
                 case MAC:
-                    if (!entity.macAddress.equals(other.entity.macAddress))
+                    if (!this.entity.macAddress.equals(other.entity.macAddress))
                         return false;
                     break;
                 case IPV4:
-                    if (entity.ipv4Address == null) {
+                    if (this.entity.ipv4Address == null) {
                         if (other.entity.ipv4Address != null) return false;
-                    } else if (!entity.ipv4Address.equals(other.entity.ipv4Address)) return false;
+                    } else if (!this.entity.ipv4Address.equals(other.entity.ipv4Address)) return false;
                     break;
                 case SWITCH:
-                    if (entity.switchDPID == null) {
+                    if (this.entity.switchDPID == null) {
                         if (other.entity.switchDPID != null) return false;
-                    } else if (!entity.switchDPID.equals(other.entity.switchDPID)) return false;
+                    } else if (!this.entity.switchDPID.equals(other.entity.switchDPID)) return false;
                     break;
                 case PORT:
-                    if (entity.switchPort == null) {
+                    if (this.entity.switchPort == null) {
                         if (other.entity.switchPort != null) return false;
-                    } else if (!entity.switchPort.equals(other.entity.switchPort)) return false;
+                    } else if (!this.entity.switchPort.equals(other.entity.switchPort)) return false;
                     break;
                 case VLAN:
-                    if (entity.vlan == null) {
+                    if (this.entity.vlan == null) {
                         if (other.entity.vlan != null) return false;
-                    } else if (!entity.vlan.equals(other.entity.vlan)) return false;
+                    } else if (!this.entity.vlan.equals(other.entity.vlan)) return false;
                     break;
             }
         }

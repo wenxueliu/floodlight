@@ -273,7 +273,7 @@ public class DeviceManagerImpl implements IDeviceService, IOFMessageListener, IT
 		public ClassState(IEntityClass clazz) {
 			EnumSet<DeviceField> keyFields = clazz.getKeyFields();
 			EnumSet<DeviceField> primaryKeyFields =
-					entityClassifier.getKeyFields();
+					this.entityClassifier.getKeyFields();
 			boolean keyFieldsMatchPrimary =
 					primaryKeyFields.equals(keyFields);
 
@@ -494,7 +494,7 @@ public class DeviceManagerImpl implements IDeviceService, IOFMessageListener, IT
 	public void addIndex(boolean perClass,
 			EnumSet<DeviceField> keyFields) {
 		if (perClass) {
-			perClassIndices.add(keyFields);
+			this.perClassIndices.add(keyFields);
 		} else {
 			secondaryIndexMap.put(keyFields,
 					new DeviceMultiIndex(keyFields));
@@ -881,7 +881,7 @@ public class DeviceManagerImpl implements IDeviceService, IOFMessageListener, IT
 	public void init(FloodlightModuleContext fmc) throws FloodlightModuleException {
 		this.perClassIndices =
 				new HashSet<EnumSet<DeviceField>>();
-		addIndex(true, EnumSet.of(DeviceField.IPV4));
+		this.addIndex(true, EnumSet.of(DeviceField.IPV4));
 
 		this.deviceListeners = new ListenerDispatcher<String, IDeviceListener>();
 		this.suppressAPs = Collections.newSetFromMap(
@@ -925,21 +925,21 @@ public class DeviceManagerImpl implements IDeviceService, IOFMessageListener, IT
 	@Override
 	public void startUp(FloodlightModuleContext fmc)
 			throws FloodlightModuleException {
-		isMaster = (floodlightProvider.getRole() == HARole.ACTIVE);
-		primaryIndex = new DeviceUniqueIndex(entityClassifier.getKeyFields());
-		secondaryIndexMap = new HashMap<EnumSet<DeviceField>, DeviceIndex>();
+		this.isMaster = (floodlightProvider.getRole() == HARole.ACTIVE);
+		this.primaryIndex = new DeviceUniqueIndex(this.entityClassifier.getKeyFields());
+		this.secondaryIndexMap = new HashMap<EnumSet<DeviceField>, DeviceIndex>();
 
-		deviceMap = new ConcurrentHashMap<Long, Device>();
-		classStateMap =
+		this.deviceMap = new ConcurrentHashMap<Long, Device>();
+		this.classStateMap =
 				new ConcurrentHashMap<String, ClassState>();
-		apComparator = new AttachmentPointComparator();
+		this.apComparator = new AttachmentPointComparator();
 
 		floodlightProvider.addOFMessageListener(OFType.PACKET_IN, this);
 		floodlightProvider.addHAListener(this.haListenerDelegate);
-		if (topology != null)
+		if (this.topology != null)
 			topology.addListener(this);
-		flowReconcileMgr.addFlowReconcileListener(this);
-		entityClassifier.addListener(this);
+		this.flowReconcileMgr.addFlowReconcileListener(this);
+		this.entityClassifier.addListener(this);
 
 		ScheduledExecutorService ses = threadPool.getScheduledExecutor();
 		Runnable ecr = new Runnable() {
@@ -963,7 +963,7 @@ public class DeviceManagerImpl implements IDeviceService, IOFMessageListener, IT
 			}
 		};
 		storeConsolidateTask = new SingletonTask(ses, consolidateStoreRunner);
-		if (isMaster)
+		if (this.isMaster)
 			storeConsolidateTask.reschedule(syncStoreConsolidateIntervalMs,
 					TimeUnit.MILLISECONDS);
 
@@ -1153,7 +1153,7 @@ public class DeviceManagerImpl implements IDeviceService, IOFMessageListener, IT
 		Ethernet eth = IFloodlightProviderService.bcStore.get(cntx,IFloodlightProviderService.CONTEXT_PI_PAYLOAD);
 
 		// Extract source entity information
-		Entity srcEntity = getSourceEntityFromPacket(eth, sw.getId(), (pi.getVersion().compareTo(OFVersion.OF_13) < 0 ? pi.getInPort() : pi.getMatch().get(MatchField.IN_PORT)));
+		Entity srcEntity = this.getSourceEntityFromPacket(eth, sw.getId(), (pi.getVersion().compareTo(OFVersion.OF_13) < 0 ? pi.getInPort() : pi.getMatch().get(MatchField.IN_PORT)));
 		if (srcEntity == null) {
 			cntInvalidSource.increment();
 			return Command.STOP;
@@ -1165,7 +1165,7 @@ public class DeviceManagerImpl implements IDeviceService, IOFMessageListener, IT
 		// the IP to MAC mapping of the VRRP IP address.  The source
 		// entity will not have that information.  Hence, a separate call
 		// to learn devices in such cases.
-		learnDeviceFromArpResponseData(eth, sw.getId(), (pi.getVersion().compareTo(OFVersion.OF_13) < 0 ? pi.getInPort() : pi.getMatch().get(MatchField.IN_PORT)));
+		this.learnDeviceFromArpResponseData(eth, sw.getId(), (pi.getVersion().compareTo(OFVersion.OF_13) < 0 ? pi.getInPort() : pi.getMatch().get(MatchField.IN_PORT)));
 
 		// Learn/lookup device information
 		Device srcDevice = learnDeviceByEntity(srcEntity);
@@ -1287,7 +1287,7 @@ public class DeviceManagerImpl implements IDeviceService, IOFMessageListener, IT
 			return null;
 
 		VlanVid vlan = VlanVid.ofVlan(eth.getVlanID());
-		IPv4Address nwSrc = getSrcNwAddr(eth, dlAddr);
+		IPv4Address nwSrc = this.getSrcNwAddr(eth, dlAddr);
 		return new Entity(dlAddr,
 				vlan,
 				nwSrc,
@@ -1331,7 +1331,7 @@ public class DeviceManagerImpl implements IDeviceService, IOFMessageListener, IT
 				port,
 				new Date());
 
-		learnDeviceByEntity(e);
+		this.learnDeviceByEntity(e);
 	}
 
 	/**
@@ -1428,7 +1428,7 @@ public class DeviceManagerImpl implements IDeviceService, IOFMessageListener, IT
 	protected Device findDeviceByEntity(Entity entity) {
 		// Look up the fully-qualified entity to see if it already
 		// exists in the primary entity index.
-		Long deviceKey = primaryIndex.findByEntity(entity);
+		Long deviceKey = this.primaryIndex.findByEntity(entity);
 		IEntityClass entityClass = null;
 
 		if (deviceKey == null) {
@@ -1466,7 +1466,7 @@ public class DeviceManagerImpl implements IDeviceService, IOFMessageListener, IT
 
 		// Look  up the fully-qualified entity to see if it
 		// exists in the primary entity index
-		Long deviceKey = primaryIndex.findByEntity(dstEntity);
+		Long deviceKey = this.primaryIndex.findByEntity(dstEntity);
 
 		if (deviceKey == null) {
 			// This could happen because:
@@ -1522,7 +1522,7 @@ public class DeviceManagerImpl implements IDeviceService, IOFMessageListener, IT
 
 			// Look up the fully-qualified entity to see if it already
 			// exists in the primary entity index.
-			Long deviceKey = primaryIndex.findByEntity(entity);
+			Long deviceKey = this.primaryIndex.findByEntity(entity);
 			IEntityClass entityClass = null;
 
 			if (deviceKey == null) {
@@ -1776,11 +1776,11 @@ public class DeviceManagerImpl implements IDeviceService, IOFMessageListener, IT
 				logger.trace("Dispatching device update: {}", update);
 			}
 			if (update.change == DeviceUpdate.Change.DELETE) {
-				deviceSyncManager.removeDevice(update.device);
+				this.deviceSyncManager.removeDevice(update.device);
 			} else {
-				deviceSyncManager.storeDevice(update.device);
+				this.deviceSyncManager.storeDevice(update.device);
 			}
-			List<IDeviceListener> listeners = deviceListeners.getOrderedListeners();
+			List<IDeviceListener> listeners = this.deviceListeners.getOrderedListeners();
 			notifyListeners(listeners, update);
 		}
 	 }
@@ -1938,7 +1938,7 @@ public class DeviceManagerImpl implements IDeviceService, IOFMessageListener, IT
 		 ArrayList<Entity> toRemove = new ArrayList<Entity>();
 		 ArrayList<Entity> toKeep = new ArrayList<Entity>();
 
-		 Iterator<Device> diter = deviceMap.values().iterator();
+		 Iterator<Device> diter = this.deviceMap.values().iterator();
 		 LinkedList<DeviceUpdate> deviceUpdates =
 				 new LinkedList<DeviceUpdate>();
 
@@ -1968,7 +1968,7 @@ public class DeviceManagerImpl implements IDeviceService, IOFMessageListener, IT
 				 }
 
 				 if (toKeep.size() > 0) {
-					 Device newDevice = allocateDevice(d.getDeviceKey(),
+					 Device newDevice = this.allocateDevice(d.getDeviceKey(),
 							 d.getDHCPClientName(),
 							 d.oldAPs,
 							 d.attachmentPoints,
@@ -1985,15 +1985,16 @@ public class DeviceManagerImpl implements IDeviceService, IOFMessageListener, IT
 						 update = new DeviceUpdate(d, CHANGE, changedFields);
 					 }
 
-					 if (!deviceMap.replace(newDevice.getDeviceKey(),
+					 if (!this.deviceMap.replace(newDevice.getDeviceKey(),
 							 d,
 							 newDevice)) {
 						 // concurrent modification; try again
 						 // need to use device that is the map now for the next
 						 // iteration
-						 d = deviceMap.get(d.getDeviceKey());
-								 if (null != d)
-									 continue;
+                         // TODO
+						 d = this.deviceMap.get(d.getDeviceKey());
+                         if (null != d)
+                             continue;
 					 }
 					 if (update != null) {
 						 // need to count after all possibly continue stmts in
@@ -2003,11 +2004,12 @@ public class DeviceManagerImpl implements IDeviceService, IOFMessageListener, IT
 					 }
 				 } else {
 					 DeviceUpdate update = new DeviceUpdate(d, DELETE, null);
-					 if (!deviceMap.remove(d.getDeviceKey(), d)) {
+					 if (!this.deviceMap.remove(d.getDeviceKey(), d)) {
 						 // concurrent modification; try again
 						 // need to use device that is the map now for the next
 						 // iteration
-						 d = deviceMap.get(d.getDeviceKey());
+                         // TODO
+						 d = this.deviceMap.get(d.getDeviceKey());
 						 if (null != d)
 							 continue;
 						 cntDeviceDeleted.increment();
@@ -2030,7 +2032,7 @@ public class DeviceManagerImpl implements IDeviceService, IOFMessageListener, IT
 		 // Don't count in this method. This method CAN BE called to clean-up
 		 // after concurrent device adds/updates and thus counting here
 		 // is misleading
-		 for (DeviceIndex index : secondaryIndexMap.values()) {
+		 for (DeviceIndex index : this.secondaryIndexMap.values()) {
 			 index.removeEntityIfNeeded(removed, deviceKey, others);
 		 }
 		 ClassState classState = getClassState(entityClass);
@@ -2061,7 +2063,7 @@ public class DeviceManagerImpl implements IDeviceService, IOFMessageListener, IT
 			 this.removeEntity(entity, device.getEntityClass(),
 					 device.getDeviceKey(), emptyToKeep);
 		 }
-		 if (!deviceMap.remove(device.getDeviceKey(), device)) {
+		 if (!this.deviceMap.remove(device.getDeviceKey(), device)) {
 			 if (logger.isDebugEnabled())
 				 logger.debug("device map does not have this device -" +
 						 device.toString());

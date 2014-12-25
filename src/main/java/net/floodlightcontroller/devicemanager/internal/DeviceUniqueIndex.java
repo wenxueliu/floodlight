@@ -39,7 +39,7 @@ public class DeviceUniqueIndex extends DeviceIndex {
      */
     public DeviceUniqueIndex(EnumSet<DeviceField> keyFields) {
         super(keyFields);
-        index = new ConcurrentHashMap<IndexedEntity, Long>();
+        this.index = new ConcurrentHashMap<IndexedEntity, Long>();
     }
 
     // ***********
@@ -48,7 +48,7 @@ public class DeviceUniqueIndex extends DeviceIndex {
 
     @Override
     public Iterator<Long> queryByEntity(Entity entity) {
-        final Long deviceKey = findByEntity(entity);
+        final Long deviceKey = this.findByEntity(entity);
         if (deviceKey != null)
             return Collections.<Long>singleton(deviceKey).iterator();
 
@@ -57,16 +57,16 @@ public class DeviceUniqueIndex extends DeviceIndex {
 
     @Override
     public Iterator<Long> getAll() {
-        return index.values().iterator();
+        return this.index.values().iterator();
     }
 
     @Override
     public boolean updateIndex(Device device, Long deviceKey) {
         for (Entity e : device.entities) {
-            IndexedEntity ie = new IndexedEntity(keyFields, e);
+            IndexedEntity ie = new IndexedEntity(this.keyFields, e);
             if (!ie.hasNonNullKeys()) continue;
 
-            Long ret = index.putIfAbsent(ie, deviceKey);
+            Long ret = this.index.putIfAbsent(ie, deviceKey);
             if (ret != null && !ret.equals(deviceKey)) {
                 // If the return value is non-null, then fail the insert
                 // (this implies that a device using this entity has
@@ -77,11 +77,12 @@ public class DeviceUniqueIndex extends DeviceIndex {
         return true;
     }
 
+    //TODO this cannot be sure unique
     @Override
     public boolean updateIndex(Entity entity, Long deviceKey) {
         IndexedEntity ie = new IndexedEntity(keyFields, entity);
         if (!ie.hasNonNullKeys()) return false;
-        index.put(ie, deviceKey);
+        this.index.put(ie, deviceKey);
         return true;
     }
 
@@ -107,7 +108,7 @@ public class DeviceUniqueIndex extends DeviceIndex {
      * @return The key for the {@link Device} object if found
      */
     public Long findByEntity(Entity entity) {
-        IndexedEntity ie = new IndexedEntity(keyFields, entity);
+        IndexedEntity ie = new IndexedEntity(this.keyFields, entity);
         Long deviceKey = index.get(ie);
         if (deviceKey == null)
             return null;
